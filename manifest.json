@@ -1,0 +1,25 @@
+{
+  "name": "Fokus",
+  "short_name": "Fokus",
+  "description": "Kleine Schritte gegen Aufschieberitis: Aufgaben priorisieren, den ersten winzigen Schritt finden, dranbleiben.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#1e2a22",
+  "theme_color": "#1e2a22",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
