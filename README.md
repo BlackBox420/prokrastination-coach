@@ -2,18 +2,22 @@
 
 Kleine, installierbare Progressive Web App (PWA) gegen Aufschieberitis. Läuft komplett im Browser, keine Server-Komponente, keine Accounts.
 
-Kein Therapie- oder Diagnose-Anspruch — ein Produktivitäts-/Coaching-Tool, das etablierte Verhaltenstechniken gegen Prokrastination nutzt: Aufgaben in einen winzigen ersten Schritt zerlegen, kurze Fokus-Sessions, sichtbarer Fortschritt.
+Kein Therapie- oder Diagnose-Anspruch — ein Produktivitäts-/Coaching-Tool, das etablierte Verhaltenstechniken gegen Prokrastination nutzt: Aufgaben in einen winzigen ersten Schritt zerlegen, kurze Fokus-Sessions, sichtbarer Fortschritt. Fachlich orientiert an Rödel/Bathen-Gabriel/Rehfeld (Hrsg.), *Perfektionismus, Imposter-Phänomen und Prokrastination* (Springer Gabler, 2025) — insbesondere dem Rubikon-Modell der Handlungsphasen, der Handlungskontrolltheorie (Kuhl) und dem REVT/ABCDE-Ansatz gegen prokrastinationsfördernde Gedanken.
 
-## Funktionen (MVP)
+## Funktionen
 
-- Eigene Aufgaben anlegen: Name, optionale Fälligkeit, Wichtigkeit (1–5), Widerstand (1–5 — wie sehr du die Aufgabe vermeidest, bewusst getrennt von reiner Schwierigkeit)
-- Priorisierung aus Dringlichkeit, Wichtigkeit, Widerstand und "Staleness" (wie lange eine Aufgabe schon liegen bleibt)
-- "Heute"-Ansicht: die aktuell wichtigste Aufgabe, mit Vorschlag für den kleinsten ersten Schritt und einem 5-Minuten-Fokus-Timer
-- Tages-Streak für aktiv bearbeitete Aufgaben
-- Verwalten-Bereich zum Anlegen/Bearbeiten/Löschen von Aufgaben
+- **Schnell-Erfassung**: eine Aufgabe anlegen braucht nur einen Namen — alles andere (Wichtigkeit, Widerstand, Fälligkeit, geplante Startzeit, Ritual, kleinster erster Schritt) ist optional und wird erst bei Bedarf über "Verfeinern" ergänzt. Eine hohe Eintragshürde ist selbst ein Prokrastinations-Trigger, deshalb bewusst kein Pflichtformular.
+- **Rubikon-Phasen-Label** (Idee → Geplant → Dabei → Erledigt), automatisch aus vorhandenen Feldern abgeleitet, kein zusätzlicher Pflegeaufwand.
+- **Priorisierung** aus Dringlichkeit, Wichtigkeit, "Widerstand" (wie sehr du eine Aufgabe vermeidest, bewusst getrennt von reiner Schwierigkeit) und wie lange eine Aufgabe schon liegen bleibt.
+- **Gelegenheitsvorsatz**: geplante Startzeit + Start-Ritual pro Aufgabe (Implementation-Intentions-Prinzip).
+- **Reframing-Hinweis** bei hohem Widerstand: kurzer, überspringbarer Denkanstoß nach dem ABCDE-Modell ("Was befürchtest du, wenn du jetzt anfängst? Ist das realistisch?").
+- **Arbeitstagebuch**: protokolliert automatisch geplante vs. tatsächliche Startzeit.
+- **Lokale Erinnerungen**: optionale Browser-Benachrichtigung, wenn eine geplante Startzeit erreicht ist — funktioniert nur, während die App offen oder kürzlich genutzt wurde (kein Server im Hintergrund, daher keine Erinnerung bei vollständig geschlossener App, v. a. auf iOS eingeschränkt).
+- **5-Minuten-Fokus-Timer**, Tages-Streak, nicht wertende Sprache (kein Schuld-Framing bei unterbrochener Serie).
+- "Alle Aufgaben"-Bereich zum Anlegen/Bearbeiten/Löschen.
 
-Nicht enthalten in dieser ersten Testversion: Stimmungs-Tagebuch, Push-Benachrichtigungen, Cloud-Sync zwischen Geräten.
+Nicht enthalten: echte Push-Benachrichtigungen bei geschlossener App (bräuchte einen Backend-Baustein), Cloud-Sync zwischen Geräten.
 
 ## Nutzung
 
-`index.html` öffnen oder den Ordner statisch hosten (z.B. GitHub Pages). Als PWA "Zum Home-Bildschirm hinzufügen" für App-Gefühl inkl. Offline-Fähigkeit. Alle Daten bleiben lokal im Browser (`localStorage`).
+`index.html` öffnen oder den Ordner statisch hosten (z. B. GitHub Pages). Als PWA "Zum Home-Bildschirm hinzufügen" für App-Gefühl inkl. Offline-Fähigkeit. Alle Daten bleiben lokal im Browser (`localStorage`).

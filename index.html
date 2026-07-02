@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="theme-color" content="#1e2a22">
+<meta name="theme-color" content="#1e9e6e">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="Fokus">
@@ -11,71 +11,68 @@
 <title>Fokus</title>
 <style>
 :root{
-  --bg:#fff;--bg2:#f2f2f7;--bg3:#e5e5ea;
+  --bg:#fff;--bg2:#f4f6f5;--bg3:#e7ebe9;
   --txt:#1c1c1e;--txt2:#6c6c70;--txt3:#aeaeb2;
-  --border:rgba(0,0,0,.1);--r:12px;--r2:8px;
-  --accent:#1e9e6e;
+  --border:rgba(0,0,0,.09);--r:18px;--r2:12px;
+  --accent:#1e9e6e;--accent-bg:linear-gradient(160deg,#eafaf3,#dff3ea);
+  --warn-bg:#fff6ea;--warn-border:#ffdca8;--warn-txt:#7a5210;
   --font:-apple-system,'SF Pro Text','Helvetica Neue',sans-serif;
 }
 @media(prefers-color-scheme:dark){
-  :root{--bg:#1c1c1e;--bg2:#2c2c2e;--bg3:#3a3a3c;--txt:#f2f2f7;--txt2:#aeaeb2;--txt3:#636366;--border:rgba(255,255,255,.1)}
+  :root{--bg:#1c1c1e;--bg2:#2a2c2b;--bg3:#3a3c3b;--txt:#f2f2f7;--txt2:#aeaeb2;--txt3:#767678;--border:rgba(255,255,255,.09);
+    --accent-bg:linear-gradient(160deg,#16241d,#122019);--warn-bg:#2b2313;--warn-border:#5a4419;--warn-txt:#e6c27a}
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%}
 body{font-family:var(--font);background:var(--bg);color:var(--txt);display:flex;flex-direction:column;max-width:480px;margin:0 auto}
 input,button,textarea{font-family:inherit;font-size:inherit}
 
-.hdr{position:sticky;top:0;z-index:50;padding:12px 16px 10px;background:var(--bg);border-bottom:.5px solid var(--border);display:flex;align-items:center;justify-content:space-between}
-.hdr-title{font-size:17px;font-weight:700}
+.hdr{position:sticky;top:0;z-index:50;padding:14px 16px 10px;background:var(--bg);border-bottom:.5px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.hdr-title{font-size:18px;font-weight:800}
 .hdr-date{font-size:12px;color:var(--txt2)}
-.gear-btn{background:var(--bg2);border:none;cursor:pointer;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.gear-btn{background:var(--bg2);border:none;cursor:pointer;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
 
-.content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 16px 40px}
+.content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px 16px 40px}
 
-.streak-badge{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:var(--txt2);margin-bottom:12px}
+/* Schnell-Erfassung */
+.quick-add{display:flex;gap:8px;margin-bottom:18px}
+.quick-add input{flex:1;padding:14px 16px;border-radius:14px;border:1.5px solid var(--border);background:var(--bg2);color:var(--txt);font-size:15px}
+.quick-add input::placeholder{color:var(--txt3)}
+.quick-add button{width:48px;height:48px;border-radius:14px;border:none;background:var(--accent);color:#fff;font-size:22px;font-weight:700;cursor:pointer;flex-shrink:0}
+.quick-add button:active{opacity:.8}
 
-.heute-card{background:#16211c;border-radius:var(--r);padding:16px;margin-bottom:16px;color:#fff}
-.heute-label{font-size:10px;font-weight:700;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px}
-.heute-name{font-size:19px;font-weight:800;margin-bottom:10px;line-height:1.25}
-.heute-microstep{font-size:13px;color:rgba(255,255,255,.75);background:rgba(255,255,255,.08);border-radius:8px;padding:10px 12px;margin-bottom:12px;line-height:1.4}
-.heute-microstep-form{display:flex;gap:6px;margin-bottom:12px}
-.heute-microstep-form input{flex:1;padding:9px 10px;border-radius:8px;border:none;background:rgba(255,255,255,.1);color:#fff;font-size:12px}
-.heute-microstep-form input::placeholder{color:rgba(255,255,255,.4)}
-.heute-actions{display:flex;gap:8px;flex-wrap:wrap}
-.heute-btn{padding:10px 14px;border-radius:9px;border:none;font-size:12px;font-weight:700;cursor:pointer}
-.heute-btn-primary{background:var(--accent);color:#fff}
-.heute-btn-secondary{background:rgba(255,255,255,.12);color:#fff}
-.pc-timer-display{padding:10px 14px;border-radius:9px;background:rgba(255,255,255,.12);color:#fff;font-size:14px;font-weight:800;font-variant-numeric:tabular-nums}
-.heute-empty{font-size:13px;color:rgba(255,255,255,.6);font-style:italic}
+.streak-line{font-size:12px;color:var(--txt2);margin-bottom:16px;text-align:center}
 
-.sec-hdr{font-size:11px;font-weight:700;color:var(--txt3);margin-bottom:7px;text-transform:uppercase;letter-spacing:.5px}
+/* Fokus-Karte */
+.focus-card{background:var(--accent-bg);border-radius:var(--r);padding:22px 20px;margin-bottom:18px}
+.stage-chip{display:inline-block;font-size:10px;font-weight:700;padding:4px 10px;border-radius:20px;background:rgba(30,158,110,.16);color:var(--accent);margin-bottom:12px;letter-spacing:.2px}
+.focus-name{font-size:21px;font-weight:800;margin-bottom:10px;line-height:1.3}
+.focus-detail{font-size:13px;color:var(--txt2);margin-bottom:14px;line-height:1.55}
+.focus-detail b{color:var(--txt)}
+.focus-actions{display:flex;gap:8px;flex-wrap:wrap}
+.focus-btn{padding:12px 16px;border-radius:12px;border:none;font-size:13px;font-weight:700;cursor:pointer}
+.focus-btn-primary{background:var(--accent);color:#fff}
+.focus-btn-secondary{background:rgba(0,0,0,.055);color:var(--txt)}
+@media(prefers-color-scheme:dark){.focus-btn-secondary{background:rgba(255,255,255,.1)}}
+.focus-timer{padding:12px 16px;border-radius:12px;background:rgba(0,0,0,.055);color:var(--txt);font-size:14px;font-weight:800;font-variant-numeric:tabular-nums}
+@media(prefers-color-scheme:dark){.focus-timer{background:rgba(255,255,255,.1)}}
 
-.t-row{background:var(--bg2);border-radius:var(--r2);margin-bottom:5px;overflow:hidden;cursor:pointer;transition:background .1s}
-.t-row:active{background:var(--bg3)}
-.t-row.is-done{opacity:.5}
-.t-row-main{display:flex;align-items:center;gap:8px;padding:9px 10px}
-.t-rank{font-size:9px;font-weight:700;color:var(--txt3);width:16px;flex-shrink:0;text-align:right}
-.t-name{flex:1;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.t-name.is-done{text-decoration:line-through}
-.t-right{display:flex;align-items:center;gap:6px;flex-shrink:0}
-.t-score{font-size:11px;font-weight:700;min-width:26px;text-align:right}
-.chk-btn{
-  width:22px;height:22px;border-radius:50%;
-  border:1.5px solid var(--border);background:none;cursor:pointer;
-  display:flex;align-items:center;justify-content:center;
-  font-size:11px;flex-shrink:0;transition:all .15s;color:var(--txt3);
-}
-.chk-btn.done{color:#fff!important;border-color:#34c759!important;background:#34c759}
-.t-expand{padding:0 10px 10px;border-top:.5px solid var(--border);margin-top:4px;padding-top:8px}
-.t-expand-row{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:8px}
-.meta-tag{font-size:9px;font-weight:600;padding:2px 6px;border-radius:4px;background:var(--bg3);color:var(--txt2)}
-.w-dots{display:flex;gap:2px}
-.w-dot{width:5px;height:5px;border-radius:50%}
-.t-expand-note{font-size:11px;color:var(--txt2);font-style:italic;margin-bottom:8px;line-height:1.4}
-.t-expand-actions{display:flex;gap:8px}
-.t-expand-actions button{flex:1;padding:8px;border-radius:8px;border:none;font-size:11px;font-weight:600;cursor:pointer;background:var(--bg3);color:var(--txt)}
+/* Reframing-Hinweis (ABCDE, nur bei hohem Widerstand) */
+.reframe-box{background:var(--warn-bg);border:1px solid var(--warn-border);border-radius:12px;padding:12px 13px;margin-bottom:14px}
+.reframe-q{font-size:12px;color:var(--warn-txt);line-height:1.5;font-weight:600}
+.reframe-box textarea{width:100%;margin-top:8px;padding:8px 9px;border-radius:8px;border:.5px solid var(--warn-border);background:var(--bg);color:var(--txt);font-size:12px;resize:none;height:48px}
+.reframe-dismiss{font-size:11px;color:var(--warn-txt);opacity:.75;text-decoration:underline;cursor:pointer;margin-top:6px;display:inline-block}
 
-.all-done-msg{font-size:12px;color:var(--txt2);font-style:italic;padding:6px 0}
+/* Später-Liste */
+.sec-hdr{font-size:11px;font-weight:700;color:var(--txt3);margin-bottom:9px;text-transform:uppercase;letter-spacing:.5px}
+.later-card{display:flex;align-items:center;gap:10px;background:var(--bg2);border-radius:var(--r2);padding:12px 13px;margin-bottom:7px;cursor:pointer}
+.later-card:active{background:var(--bg3)}
+.later-name{flex:1;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.later-chip{font-size:9px;font-weight:700;padding:3px 8px;border-radius:20px;background:var(--bg3);color:var(--txt2);flex-shrink:0}
+.later-done-btn{width:24px;height:24px;border-radius:50%;border:1.5px solid var(--border);background:none;cursor:pointer;flex-shrink:0;color:var(--txt3);display:flex;align-items:center;justify-content:center;font-size:11px}
+.later-done-btn.done{color:#fff;border-color:#34c759;background:#34c759}
+
+.empty-state{text-align:center;padding:50px 20px;color:var(--txt2);font-size:13px;line-height:1.7}
 
 /* Modal */
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;display:flex;align-items:flex-end;opacity:0;pointer-events:none;transition:opacity .2s}
@@ -86,44 +83,47 @@ input,button,textarea{font-family:inherit;font-size:inherit}
 .modal-sub{font-size:12px;color:var(--txt2);text-align:center;margin-bottom:16px}
 .modal-close{position:absolute;top:16px;right:16px;background:var(--bg2);border:none;cursor:pointer;width:28px;height:28px;border-radius:50%;font-size:14px;color:var(--txt2);display:flex;align-items:center;justify-content:center}
 
-/* Verwalten */
-.mg-list{margin-bottom:12px}
-.mg-task{background:var(--bg2);border-radius:var(--r2);padding:10px;margin-bottom:8px}
-.mg-task-hdr{display:flex;align-items:center;gap:8px}
-.mg-task-info{flex:1;min-width:0}
-.mg-task-name{font-size:13px;font-weight:700}
-.mg-task-name.is-done{text-decoration:line-through;color:var(--txt2)}
-.mg-task-meta{font-size:10px;color:var(--txt2);margin-top:1px}
-.mg-task-actions{display:flex;gap:4px;flex-shrink:0}
-.mg-icon-btn{width:26px;height:26px;border-radius:50%;border:none;background:var(--bg3);cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.mg-form{background:var(--bg);border-radius:8px;padding:10px;margin-top:8px;display:flex;flex-direction:column;gap:8px}
-.mg-field{display:flex;flex-direction:column;gap:3px}
-.mg-field label{font-size:9px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.3px}
-.mg-field input[type=text],.mg-field input[type=date],.mg-field textarea{width:100%;padding:8px 9px;border-radius:7px;border:.5px solid var(--border);background:var(--bg2);color:var(--txt);font-size:13px}
-.mg-field textarea{resize:none;height:56px;font-family:inherit}
-.mg-field-row{display:flex;gap:8px}
-.mg-field-row .mg-field{flex:1}
-.mg-dot-picker{display:flex;gap:6px}
-.mg-dot-btn{width:24px;height:24px;border-radius:50%;border:1.5px solid var(--border);background:var(--bg2);cursor:pointer;font-size:11px;font-weight:700;color:var(--txt2);display:flex;align-items:center;justify-content:center}
-.mg-form-actions{display:flex;gap:8px;margin-top:2px}
-.mg-form-actions button{flex:1;padding:9px;border-radius:8px;border:none;font-size:12px;font-weight:600;cursor:pointer}
-.mg-btn-save{background:var(--accent);color:#fff}
-.mg-btn-cancel{background:var(--bg3);color:var(--txt)}
-.mg-add-task{width:100%;padding:10px;border-radius:8px;border:1.5px dashed var(--accent);background:none;color:var(--accent);font-size:12px;font-weight:700;cursor:pointer;margin-top:4px}
-.mg-finish-btn{width:100%;padding:14px;border-radius:10px;border:none;background:var(--accent);color:#fff;font-size:15px;font-weight:700;cursor:pointer;margin-top:8px}
-.mg-finish-btn:disabled{background:var(--bg3);color:var(--txt3);cursor:not-allowed}
+/* Verwalten-Liste */
+.mtask{display:flex;align-items:center;gap:10px;background:var(--bg2);border-radius:var(--r2);padding:11px 13px;margin-bottom:7px;cursor:pointer}
+.mtask-info{flex:1;min-width:0}
+.mtask-name{font-size:13px;font-weight:700}
+.mtask-name.is-done{text-decoration:line-through;color:var(--txt2)}
+.mtask-meta{font-size:10px;color:var(--txt2);margin-top:2px}
+.mtask-actions{display:flex;gap:4px;flex-shrink:0}
+.icon-btn{width:26px;height:26px;border-radius:50%;border:none;background:var(--bg3);cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 
-/* Gelegenheitsvorsatz auf der Heute-Karte */
-.heute-plan{font-size:12px;color:rgba(255,255,255,.7);margin-bottom:10px;line-height:1.5}
-.heute-plan b{color:#fff}
+/* Verfeinern-Formular */
+.field{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+.field label{font-size:9px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.3px}
+.field input[type=text],.field input[type=date],.field input[type=time],.field textarea{width:100%;padding:9px 10px;border-radius:9px;border:.5px solid var(--border);background:var(--bg2);color:var(--txt);font-size:13px}
+.field textarea{resize:none;height:56px;font-family:inherit}
+.field-row{display:flex;gap:10px}
+.field-row .field{flex:1}
+.dot-picker{display:flex;gap:6px}
+.dot-btn{width:26px;height:26px;border-radius:50%;border:1.5px solid var(--border);background:var(--bg2);cursor:pointer;font-size:11px;font-weight:700;color:var(--txt2);display:flex;align-items:center;justify-content:center}
+.form-actions{display:flex;gap:8px;margin-top:6px}
+.form-actions button{flex:1;padding:11px;border-radius:10px;border:none;font-size:13px;font-weight:700;cursor:pointer}
+.btn-save{background:var(--accent);color:#fff}
+.btn-cancel{background:var(--bg3);color:var(--txt)}
+.btn-delete{background:none;color:#ff3b30;font-size:12px;font-weight:600;border:none;cursor:pointer;padding:8px;width:100%;margin-top:4px}
 
-/* Arbeitstagebuch */
+/* Tagebuch */
 .diary-entry{background:var(--bg2);border-radius:var(--r2);padding:10px 12px;margin-bottom:6px}
 .diary-entry-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 .diary-entry-name{font-size:13px;font-weight:700}
 .diary-entry-date{font-size:10px;color:var(--txt3)}
 .diary-entry-times{font-size:11px;color:var(--txt2);margin-top:3px}
 .diary-diff{font-weight:700}
+
+.hint-msg{font-size:12px;color:var(--txt2);font-style:italic;padding:6px 0}
+
+/* Erinnerungen / Tipps im Verwalten-Footer */
+.footer-block{border-top:.5px solid var(--border);margin-top:16px;padding-top:14px}
+.footer-block-title{font-size:11px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.footer-block p{font-size:11px;color:var(--txt2);line-height:1.6;margin-bottom:8px}
+.notif-btn{width:100%;padding:11px;border-radius:10px;border:none;background:var(--accent);color:#fff;font-size:12px;font-weight:700;cursor:pointer}
+.notif-btn:disabled{background:var(--bg3);color:var(--txt3);cursor:default}
+.tips-link{font-size:12px;color:var(--accent);text-decoration:none;font-weight:600}
 </style>
 </head>
 <body>
@@ -135,37 +135,39 @@ input,button,textarea{font-family:inherit;font-size:inherit}
   </div>
   <div style="display:flex;gap:8px">
     <button class="gear-btn" onclick="openDiary()" title="Arbeitstagebuch">📔</button>
-    <button class="gear-btn" onclick="openManage()" title="Verwalten">🗂️</button>
+    <button class="gear-btn" onclick="openManage()" title="Alle Aufgaben">🗂️</button>
   </div>
 </div>
 
 <div class="content">
-  <div id="onboarding-wrap" style="display:none">
-    <div style="padding:8px 0 20px">
-      <div style="font-size:20px;font-weight:800;margin-bottom:6px">👋 Willkommen bei Fokus</div>
-      <div style="font-size:13px;color:var(--txt2);line-height:1.5">Leg eine Aufgabe an, die du gerade vor dir herschiebst — mit Wichtigkeit und "Widerstand" (wie sehr du sie vermeidest). Fokus schlägt dir danach immer den nächsten sinnvollen Schritt vor, keine überwältigende Liste.</div>
-    </div>
-    <div id="onboarding-content"></div>
-    <button class="mg-finish-btn" id="onboarding-finish-btn" onclick="finishOnboarding()" disabled>✓ Fertig, loslegen!</button>
+  <div class="quick-add">
+    <input type="text" id="quick-add-input" placeholder="Was schiebst du gerade auf?" onkeydown="if(event.key==='Enter')quickAdd()">
+    <button onclick="quickAdd()">+</button>
   </div>
-  <div id="app-wrap" style="display:none">
-    <div class="streak-badge" id="streak-badge"></div>
-    <div id="heute-card"></div>
-    <div class="sec-hdr">Weitere Aufgaben</div>
-    <div id="task-list"></div>
-    <div class="sec-hdr" style="margin-top:18px" id="done-hdr" hidden>Erledigt</div>
-    <div id="done-list"></div>
+
+  <div class="streak-line" id="streak-line"></div>
+
+  <div id="focus-stack"></div>
+
+  <div id="later-wrap">
+    <div class="sec-hdr">Später</div>
+    <div id="later-list"></div>
   </div>
 </div>
 
 <div class="modal-bg" id="manage-bg" onclick="manageBgClick(event)">
   <div class="modal">
     <button class="modal-close" onclick="closeManage()">✕</button>
-    <div class="modal-title">Verwalten</div>
-    <div class="modal-sub">Aufgaben hinzufügen, bearbeiten, löschen</div>
+    <div class="modal-title">Alle Aufgaben</div>
+    <div class="modal-sub">Antippen zum Verfeinern oder Löschen</div>
     <div id="manage-content"></div>
-    <div style="border-top:.5px solid var(--border);margin-top:16px;padding-top:12px">
-      <a href="#" onclick="toggleTips();return false" style="font-size:12px;color:var(--accent);text-decoration:none;font-weight:600">💡 Tipps für den Arbeitsplatz</a>
+    <div class="footer-block">
+      <div class="footer-block-title">Erinnerungen</div>
+      <p id="notif-status-text">Erinnert dich lokal, wenn eine geplante Startzeit erreicht ist — funktioniert nur, während Fokus geöffnet oder kürzlich benutzt wurde, nicht bei komplett geschlossener App (v. a. auf dem iPhone eingeschränkt).</p>
+      <button class="notif-btn" id="notif-btn" onclick="requestNotifPermission()">🔔 Erinnerungen aktivieren</button>
+    </div>
+    <div class="footer-block">
+      <a href="#" onclick="toggleTips();return false" class="tips-link">💡 Tipps für den Arbeitsplatz</a>
       <div id="tips-block" style="display:none;font-size:12px;color:var(--txt2);line-height:1.7;margin-top:8px">
         • Arbeitsplatz vorher aufräumen und nur das Nötige bereitlegen<br>
         • Handy in einen anderen Raum legen oder Störungen für die erste Einheit stumm schalten<br>
@@ -173,6 +175,15 @@ input,button,textarea{font-family:inherit;font-size:inherit}
         • Dich nach jeder Einheit bewusst kurz belohnen (Pause, Snack, etwas Schönes)
       </div>
     </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="refine-bg" onclick="refineBgClick(event)">
+  <div class="modal">
+    <button class="modal-close" onclick="closeRefine()">✕</button>
+    <div class="modal-title">Aufgabe verfeinern</div>
+    <div class="modal-sub">Alles hier ist optional</div>
+    <div id="refine-content"></div>
   </div>
 </div>
 
@@ -211,39 +222,17 @@ function nowTimeStr(){
   return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
 }
 
-// Arbeitstagebuch (Selbstbeobachtung): geplante vs. tatsächliche Startzeit der ersten
-// Arbeitseinheit an einer Aufgabe pro Tag — zentrale Wirkkomponente aus dem
-// Münsteraner Interventionskonzept gegen Prokrastination. Ein Eintrag pro Aufgabe/Tag.
-function logDiaryEntry(t){
-  const today = todayStr();
-  if(diary.some(e=>e.taskId===t.id && e.date===today)) return;
-  diary.unshift({date:today, taskId:t.id, taskName:t.name, plannedTime:t.plannedTime||null, actualTime:nowTimeStr()});
-  diary = diary.slice(0,80);
-  saveDiary();
-}
-
-function diaryDiff(e){
-  if(!e.plannedTime) return null;
-  const [ph,pm]=e.plannedTime.split(':').map(Number);
-  const [ah,am]=e.actualTime.split(':').map(Number);
-  const diff=(ah*60+am)-(ph*60+pm);
-  if(diff<=0) return {text:'pünktlich oder früher',ok:true};
-  return {text:`+${diff} Min später`,ok:diff<=10};
-}
-
 // ── Score ─────────────────────────────────────────────────────────────────────
 
 function daysUntilDate(ds){ return Math.max(0,(new Date(ds+'T12:00:00')-new Date())/86400000); }
 function daysSinceDate(ds){ return Math.max(0,(new Date(todayStr()+'T12:00:00')-new Date(ds+'T12:00:00'))/86400000); }
 
 function taskUrgency(t){
-  if(!t.dueDate) return 0.35; // Aufgaben ohne Datum: milder, konstanter Druck
+  if(!t.dueDate) return 0.35;
   const days = daysUntilDate(t.dueDate);
   return Math.max(0.15, Math.min(1, 1-days/14));
 }
 
-// Staleness: je länger eine Aufgabe liegen bleibt, desto mehr Priorität bekommt sie —
-// verhindert, dass unangenehme Aufgaben dauerhaft nach unten rutschen.
 function taskStaleness(t){
   const ref = t.lastTouched || t.createdAt;
   return Math.min(1, daysSinceDate(ref)/10);
@@ -251,7 +240,7 @@ function taskStaleness(t){
 
 function calcTaskScore(t){
   const urgency = taskUrgency(t);
-  const resistanceBoost = 0.6+t.resistance*0.18; // hoher Widerstand -> höhere Priorität ("das Unangenehme zuerst")
+  const resistanceBoost = 0.6+t.resistance*0.18;
   const staleness = taskStaleness(t);
   return t.importance*urgency*resistanceBoost*(0.5+staleness*0.5);
 }
@@ -262,6 +251,16 @@ function scoreCol(score){
   if(score>0.2) return '#34c759';
   return '#aeaeb2';
 }
+
+// Rubikon-Modell der Handlungsphasen (abgeleitet, kein eigenes Datenfeld):
+// idee (Absicht) -> geplant (Volitionsphase, hat Plan/Ritual/Schritt) -> dabei (heute berührt) -> erledigt.
+function taskStage(t){
+  if(t.done) return 'erledigt';
+  if(t.lastTouched===todayStr()) return 'dabei';
+  if(t.plannedTime||t.microstep||t.ritual) return 'geplant';
+  return 'idee';
+}
+const STAGE_LABEL = {idee:'💭 Idee',geplant:'🗓️ Geplant',dabei:'🔥 Dabei',erledigt:'✓ Erledigt'};
 
 // ── Streak ────────────────────────────────────────────────────────────────────
 
@@ -281,6 +280,25 @@ function touchTask(id){
   t.lastTouched = todayStr();
   saveTasks();
   bumpStreak();
+}
+
+// ── Arbeitstagebuch ───────────────────────────────────────────────────────────
+
+function logDiaryEntry(t){
+  const today = todayStr();
+  if(diary.some(e=>e.taskId===t.id && e.date===today)) return;
+  diary.unshift({date:today, taskId:t.id, taskName:t.name, plannedTime:t.plannedTime||null, actualTime:nowTimeStr()});
+  diary = diary.slice(0,80);
+  saveDiary();
+}
+
+function diaryDiff(e){
+  if(!e.plannedTime) return null;
+  const [ph,pm]=e.plannedTime.split(':').map(Number);
+  const [ah,am]=e.actualTime.split(':').map(Number);
+  const diff=(ah*60+am)-(ph*60+pm);
+  if(diff<=0) return {text:'pünktlich oder früher',ok:true};
+  return {text:`+${diff} Min später`,ok:diff<=10};
 }
 
 // ── Timer ─────────────────────────────────────────────────────────────────────
@@ -308,7 +326,54 @@ function startTimer(id){
   },1000);
 }
 
+// ── Erinnerungen (lokal, ohne Backend) ────────────────────────────────────────
+
+let notifPermission = ('Notification' in window) ? Notification.permission : 'unsupported';
+
+function requestNotifPermission(){
+  if(!('Notification' in window)){ alert('Erinnerungen werden von diesem Browser nicht unterstützt.'); return; }
+  Notification.requestPermission().then(p=>{ notifPermission=p; renderManage(); });
+}
+
+function fireReminder(t){
+  const title = '⏰ '+t.name;
+  const body = t.ritual ? t.ritual : 'Zeit für den nächsten kleinen Schritt.';
+  if(navigator.serviceWorker && navigator.serviceWorker.controller){
+    navigator.serviceWorker.ready.then(reg=>reg.showNotification(title,{body,icon:'icon.svg'})).catch(()=>{});
+  } else {
+    try{ new Notification(title,{body}); }catch(e){}
+  }
+}
+
+function checkReminders(){
+  if(notifPermission!=='granted') return;
+  const nowStr = nowTimeStr();
+  const today = todayStr();
+  let changed=false;
+  TASKS.forEach(t=>{
+    if(t.done || !t.plannedTime) return;
+    if(t.lastNotifiedDate===today) return;
+    if(t.plannedTime<=nowStr){
+      fireReminder(t);
+      t.lastNotifiedDate=today;
+      changed=true;
+    }
+  });
+  if(changed) saveTasks();
+}
+
 // ── Actions ───────────────────────────────────────────────────────────────────
+
+function quickAdd(){
+  const input=document.getElementById('quick-add-input');
+  const name=(input.value||'').trim();
+  if(!name) return;
+  const today=todayStr();
+  TASKS.push({id:genId('t'),name,dueDate:'',importance:3,resistance:3,microstep:'',plannedTime:'',ritual:'',reframeNote:'',createdAt:today,lastTouched:null,lastNotifiedDate:null,done:false});
+  saveTasks();
+  input.value='';
+  renderApp();
+}
 
 function markStarted(id){
   const t=T_MAP[id];
@@ -328,20 +393,14 @@ function markDone(id){
   renderApp();
 }
 
-function saveInlineMicrostep(id){
-  const input=document.getElementById('heute-microstep-input');
-  if(!input) return;
-  const val=(input.value||'').trim();
-  if(!val) return;
-  T_MAP[id].microstep=val;
-  saveTasks();
-  renderApp();
-}
+let dismissedReframe = new Set();
+function dismissReframe(id){ dismissedReframe.add(id); renderApp(); }
 
-let expanded = new Set();
-function toggleExpand(id){
-  expanded.has(id)?expanded.delete(id):expanded.add(id);
-  renderTaskLists();
+function saveReframeNote(id){
+  const el=document.getElementById('reframe-note-input');
+  if(!el) return;
+  T_MAP[id].reframeNote=(el.value||'').trim();
+  saveTasks();
 }
 
 // ── Render ────────────────────────────────────────────────────────────────────
@@ -353,138 +412,92 @@ function renderHeader(){
 
 function renderStreak(){
   const n=streakState.count||0;
-  document.getElementById('streak-badge').innerHTML = n>0
+  document.getElementById('streak-line').textContent = n>0
     ? `🔥 ${n} Tag${n===1?'':'e'} in Folge`
-    : `Starte heute deine Serie`;
+    : `Heute ist ein guter Tag für einen neuen Start`;
 }
 
 function activeTasksSorted(){
   return TASKS.filter(t=>!t.done).map(t=>({...t,score:calcTaskScore(t)})).sort((a,b)=>b.score-a.score);
 }
 
-function renderHeuteCard(){
+function renderFocusStack(){
   const active = activeTasksSorted();
-  const el = document.getElementById('heute-card');
+  const el = document.getElementById('focus-stack');
   if(active.length===0){
-    el.innerHTML = `<div class="heute-card"><div class="heute-label">Heute</div><div class="heute-empty">Keine offenen Aufgaben — leg dir in "Verwalten" eine neue an. 🎉</div></div>`;
+    el.innerHTML = `<div class="empty-state">Noch nichts auf der Liste.<br>Trag oben ein, was du gerade vor dir herschiebst — mehr braucht es nicht zum Start.</div>`;
+    document.getElementById('later-wrap').style.display='none';
     return;
   }
+  document.getElementById('later-wrap').style.display='';
   const top = active[0];
-  const microstepHtml = top.microstep
-    ? `<div class="heute-microstep">👉 ${esc(top.microstep)}</div>`
-    : `<div class="heute-microstep-form">
-        <input type="text" id="heute-microstep-input" placeholder="Kleinster Schritt, den du JETZT in 2 Min. schaffst…">
-        <button class="heute-btn heute-btn-secondary" onclick="saveInlineMicrostep('${top.id}')">Speichern</button>
-      </div>`;
-  const planHtml = (top.plannedTime || top.ritual)
-    ? `<div class="heute-plan">${top.plannedTime?`🕐 Geplanter Start: <b>${esc(top.plannedTime)}</b>`:''}${top.plannedTime&&top.ritual?' · ':''}${top.ritual?`Ritual: ${esc(top.ritual)}`:''}</div>`
-    : '';
+  const stage = taskStage(top);
+
+  const detailParts=[];
+  if(top.plannedTime) detailParts.push(`🕐 Geplant: <b>${esc(top.plannedTime)}</b>`);
+  if(top.ritual) detailParts.push(`Ritual: ${esc(top.ritual)}`);
+  if(top.microstep) detailParts.push(`👉 ${esc(top.microstep)}`);
+  const detailHtml = detailParts.length ? `<div class="focus-detail">${detailParts.join(' · ')}</div>` : '';
+
+  const reframeHtml = (top.resistance>=4 && !dismissedReframe.has(top.id)) ? `
+    <div class="reframe-box">
+      <div class="reframe-q">Was befürchtest du, wenn du jetzt anfängst? Ist das realistisch? <span class="reframe-dismiss" onclick="dismissReframe('${top.id}')">Überspringen</span></div>
+      <textarea id="reframe-note-input" placeholder="Kurze Notiz (optional)" onchange="saveReframeNote('${top.id}')">${esc(top.reframeNote||'')}</textarea>
+    </div>` : '';
+
   const timerHtml = (timerActive && timerTaskId===top.id)
-    ? `<div class="pc-timer-display" id="timer-display">⏱ ${fmtTimer(timerRemaining)}</div>`
-    : `<button class="heute-btn heute-btn-primary" onclick="startTimer('${top.id}')">⏱ 5-Minuten-Fokus starten</button>`;
-  el.innerHTML = `<div class="heute-card">
-    <div class="heute-label">Heute als Nächstes</div>
-    <div class="heute-name">${esc(top.name)}</div>
-    ${planHtml}
-    ${microstepHtml}
-    <div class="heute-actions">
+    ? `<div class="focus-timer" id="timer-display">⏱ ${fmtTimer(timerRemaining)}</div>`
+    : `<button class="focus-btn focus-btn-primary" onclick="startTimer('${top.id}')">⏱ 5-Minuten-Fokus</button>`;
+
+  el.innerHTML = `<div class="focus-card">
+    <div class="stage-chip">${STAGE_LABEL[stage]}</div>
+    <div class="focus-name">${esc(top.name)}</div>
+    ${reframeHtml}
+    ${detailHtml}
+    <div class="focus-actions">
       ${timerHtml}
-      <button class="heute-btn heute-btn-secondary" onclick="markStarted('${top.id}')">Angefangen</button>
-      <button class="heute-btn heute-btn-secondary" onclick="markDone('${top.id}')">✓ Erledigt</button>
+      <button class="focus-btn focus-btn-secondary" onclick="markStarted('${top.id}')">Angefangen</button>
+      <button class="focus-btn focus-btn-secondary" onclick="markDone('${top.id}')">✓ Erledigt</button>
+      <button class="focus-btn focus-btn-secondary" onclick="openRefine('${top.id}')">Verfeinern</button>
     </div>
   </div>`;
 }
 
-function taskRowHtml(t,i){
-  const col=scoreCol(t.score);
-  const isExp=expanded.has(t.id);
-  const wDots=Array.from({length:5},(_,di)=>
-    `<div class="w-dot" style="background:${di<t.importance?'#007aff':'var(--bg3)'}"></div>`).join('');
-  const rDots=Array.from({length:5},(_,di)=>
-    `<div class="w-dot" style="background:${di<t.resistance?'#ff9500':'var(--bg3)'}"></div>`).join('');
-  return `<div class="t-row" onclick="toggleExpand('${t.id}')">
-    <div class="t-row-main">
-      <span class="t-rank">#${i+1}</span>
-      <span class="t-name">${esc(t.name)}</span>
-      <div class="t-right">
-        <button class="chk-btn${t.done?' done':''}" onclick="event.stopPropagation();markDone('${t.id}')">${t.done?'✓':'○'}</button>
-        <span class="t-score" style="color:${col}">${t.score.toFixed(1)}</span>
-      </div>
-    </div>
-    ${isExp?`<div class="t-expand" onclick="event.stopPropagation()">
-      <div class="t-expand-row">
-        ${t.dueDate?`<span class="meta-tag">📅 ${new Date(t.dueDate+'T12:00:00').toLocaleDateString('de-CH',{day:'numeric',month:'short'})}</span>`:''}
-        <div class="w-dots" title="Wichtigkeit">${wDots}</div>
-        <div class="w-dots" title="Widerstand">${rDots}</div>
-      </div>
-      ${t.microstep?`<div class="t-expand-note">👉 ${esc(t.microstep)}</div>`:''}
-      <div class="t-expand-actions">
-        <button onclick="markStarted('${t.id}')">Angefangen</button>
-        <button onclick="markDone('${t.id}')">${t.done?'Wieder öffnen':'✓ Erledigt'}</button>
-      </div>
-    </div>`:''}
-  </div>`;
-}
-
-function renderTaskLists(){
-  const active = activeTasksSorted();
-  document.getElementById('task-list').innerHTML = active.length===0
-    ? `<div class="all-done-msg">Keine weiteren Aufgaben.</div>`
-    : active.map((t,i)=>taskRowHtml(t,i)).join('');
-
-  const done = TASKS.filter(t=>t.done);
-  const doneHdr = document.getElementById('done-hdr');
-  doneHdr.hidden = done.length===0;
-  document.getElementById('done-list').innerHTML = done.map((t,i)=>taskRowHtml({...t,score:0},i)).join('');
+function renderLaterList(){
+  const active = activeTasksSorted().slice(1);
+  document.getElementById('later-list').innerHTML = active.length===0
+    ? `<div class="hint-msg">Sonst nichts offen.</div>`
+    : active.map(t=>{
+        const stage=taskStage(t);
+        return `<div class="later-card" onclick="openRefine('${t.id}')">
+          <button class="later-done-btn" onclick="event.stopPropagation();markDone('${t.id}')">○</button>
+          <span class="later-name">${esc(t.name)}</span>
+          <span class="later-chip">${STAGE_LABEL[stage]}</span>
+        </div>`;
+      }).join('');
 }
 
 function renderApp(){
-  updateOnboardingState();
   renderStreak();
-  renderHeuteCard();
-  renderTaskLists();
+  renderFocusStack();
+  renderLaterList();
   renderManage();
+  checkReminders();
 }
 
-// ── Verwalten (Aufgaben) ────────────────────────────────────────────────────────
-
-let mgState = { newTaskOpen:false, editTask:null };
-function mgResetForms(){ mgState = { newTaskOpen:false, editTask:null }; }
-
-function mgActiveContainer(){
-  const modalOpen = document.getElementById('manage-bg').classList.contains('open');
-  return document.getElementById(modalOpen?'manage-content':'onboarding-content');
-}
-
-function updateOnboardingState(){
-  const onboarded = localStorage.getItem('pc-onboarded')==='1';
-  const show = !onboarded || TASKS.length===0;
-  document.getElementById('onboarding-wrap').style.display = show?'':'none';
-  document.getElementById('app-wrap').style.display = show?'none':'';
-}
-
-function updateFinishBtn(){
-  const btn=document.getElementById('onboarding-finish-btn');
-  if(btn) btn.disabled = TASKS.length===0;
-}
-
-function finishOnboarding(){
-  if(TASKS.length===0) return;
-  localStorage.setItem('pc-onboarded','1');
-  renderApp();
-}
+// ── Verfeinern (einzelne Aufgabe) ─────────────────────────────────────────────
 
 function dotPicker(id, value){
-  return `<div class="mg-dot-picker" id="${id}" data-value="${value}">${Array.from({length:5},(_,i)=>{
+  return `<div class="dot-picker" id="${id}" data-value="${value}">${Array.from({length:5},(_,i)=>{
     const v=i+1;
-    return `<button type="button" class="mg-dot-btn"
+    return `<button type="button" class="dot-btn"
       style="${v<=value?'background:#007aff;border-color:#007aff;color:#fff':''}"
-      onclick="mgPickDot(this,${v})">${v}</button>`;
+      onclick="pickDot(this,${v})">${v}</button>`;
   }).join('')}</div>`;
 }
 
-function mgPickDot(btn,val){
-  const row=btn.closest('.mg-dot-picker');
+function pickDot(btn,val){
+  const row=btn.closest('.dot-picker');
   row.dataset.value=val;
   [...row.children].forEach((b,i)=>{
     if(i<val){ b.style.background='#007aff'; b.style.borderColor='#007aff'; b.style.color='#fff'; }
@@ -492,135 +505,145 @@ function mgPickDot(btn,val){
   });
 }
 
-function mgTaskForm(t){
-  return `<div class="mg-form">
-    <div class="mg-field">
-      <label>Aufgabe</label>
-      <input type="text" id="mg-t-name" value="${t?esc(t.name):''}" placeholder="z.B. Steuererklärung anfangen">
+function renderRefine(id){
+  const t=T_MAP[id];
+  const el=document.getElementById('refine-content');
+  if(!t || !el) return;
+  el.innerHTML = `
+    <div class="field">
+      <label>Name</label>
+      <input type="text" id="rf-name" value="${esc(t.name)}">
     </div>
-    <div class="mg-field">
-      <label>Fälligkeit (optional)</label>
-      <input type="date" id="mg-t-due" value="${t&&t.dueDate?t.dueDate:''}">
-    </div>
-    <div class="mg-field-row">
-      <div class="mg-field">
-        <label>Wichtigkeit</label>
-        ${dotPicker('mg-t-imp', t?t.importance:3)}
+    <div class="field-row">
+      <div class="field">
+        <label>Fälligkeit (optional)</label>
+        <input type="date" id="rf-due" value="${t.dueDate||''}">
       </div>
-      <div class="mg-field">
-        <label>Widerstand</label>
-        ${dotPicker('mg-t-res', t?t.resistance:3)}
-      </div>
-    </div>
-    <div class="mg-field">
-      <label>Kleinster erster Schritt (optional)</label>
-      <textarea id="mg-t-micro" placeholder="z.B. Ordner mit Belegen auf den Tisch legen">${t?esc(t.microstep||''):''}</textarea>
-    </div>
-    <div class="mg-field-row">
-      <div class="mg-field">
+      <div class="field">
         <label>Geplante Startzeit (optional)</label>
-        <input type="time" id="mg-t-plan" value="${t&&t.plannedTime?t.plannedTime:''}">
+        <input type="time" id="rf-plan" value="${t.plannedTime||''}">
       </div>
     </div>
-    <div class="mg-field">
+    <div class="field-row">
+      <div class="field">
+        <label>Wichtigkeit</label>
+        ${dotPicker('rf-imp', t.importance)}
+      </div>
+      <div class="field">
+        <label>Widerstand</label>
+        ${dotPicker('rf-res', t.resistance)}
+      </div>
+    </div>
+    <div class="field">
+      <label>Kleinster erster Schritt (optional)</label>
+      <textarea id="rf-micro" placeholder="z.B. Ordner mit Belegen auf den Tisch legen">${esc(t.microstep||'')}</textarea>
+    </div>
+    <div class="field">
       <label>Start-Ritual (optional)</label>
-      <input type="text" id="mg-t-ritual" value="${t?esc(t.ritual||''):''}" placeholder="z.B. Handy weglegen, 3x tief durchatmen">
+      <input type="text" id="rf-ritual" value="${esc(t.ritual||'')}" placeholder="z.B. Handy weglegen, 3x tief durchatmen">
     </div>
-    <div class="mg-form-actions">
-      <button class="mg-btn-cancel" onclick="mgCancel()">Abbrechen</button>
-      <button class="mg-btn-save" onclick="mgSaveTask(${t?`'${t.id}'`:'null'})">Speichern</button>
+    <div class="field">
+      <label>Gedanken-Notiz (optional)</label>
+      <textarea id="rf-reframe" placeholder="Was befürchtest du, wenn du anfängst — und ist das realistisch?">${esc(t.reframeNote||'')}</textarea>
     </div>
-  </div>`;
-}
-
-function mgTaskCard(t){
-  const editing = mgState.editTask===t.id;
-  const dueStr = t.dueDate ? new Date(t.dueDate+'T12:00:00').toLocaleDateString('de-CH',{day:'numeric',month:'short'}) : 'kein Datum';
-  return `<div class="mg-task">
-    <div class="mg-task-hdr">
-      <div class="mg-task-info">
-        <div class="mg-task-name${t.done?' is-done':''}">${esc(t.name)}</div>
-        <div class="mg-task-meta">${dueStr} · Wichtigkeit ${t.importance} · Widerstand ${t.resistance}${t.plannedTime?' · Start '+esc(t.plannedTime):''}${t.done?' · erledigt':''}</div>
-      </div>
-      <div class="mg-task-actions">
-        <button class="mg-icon-btn" onclick="mgOpenEditTask('${t.id}')">✏️</button>
-        <button class="mg-icon-btn" onclick="mgDeleteTask('${t.id}')">🗑</button>
-      </div>
+    <div class="form-actions">
+      <button class="btn-cancel" onclick="closeRefine()">Abbrechen</button>
+      <button class="btn-save" onclick="saveRefine('${t.id}')">Speichern</button>
     </div>
-    ${editing?mgTaskForm(t):''}
-  </div>`;
+    <button class="btn-delete" onclick="deleteTask('${t.id}')">Aufgabe löschen</button>
+  `;
 }
 
-function mgBodyHtml(){
-  const sorted=[...TASKS].sort((a,b)=>(a.done-b.done)||calcTaskScore(b)-calcTaskScore(a));
-  const tasksHtml = sorted.map(t=>mgTaskCard(t)).join('')
-    || `<div class="all-done-msg">Noch keine Aufgaben angelegt.</div>`;
-  return `<div class="mg-list">${tasksHtml}</div>
-    ${mgState.newTaskOpen?mgTaskForm(null):`<button class="mg-add-task" onclick="mgOpenAddTask()">+ Neue Aufgabe</button>`}`;
-}
-
-function renderManage(){
-  const html=mgBodyHtml();
-  const on=document.getElementById('onboarding-content');
-  const mo=document.getElementById('manage-content');
-  if(on) on.innerHTML=html;
-  if(mo) mo.innerHTML=html;
-  updateFinishBtn();
-}
-
-function mgOpenAddTask(){ mgResetForms(); mgState.newTaskOpen=true; renderManage(); }
-function mgOpenEditTask(id){ mgResetForms(); mgState.editTask=id; renderManage(); }
-function mgCancel(){ mgResetForms(); renderManage(); }
-
-function mgSaveTask(id){
-  const c=mgActiveContainer();
-  const name=(c.querySelector('#mg-t-name').value||'').trim();
+function saveRefine(id){
+  const t=T_MAP[id];
+  if(!t) return;
+  const name=(document.getElementById('rf-name').value||'').trim();
   if(!name){ alert('Bitte einen Namen eingeben.'); return; }
-  const dueDate=c.querySelector('#mg-t-due').value||'';
-  const importance=parseInt(c.querySelector('#mg-t-imp').dataset.value)||3;
-  const resistance=parseInt(c.querySelector('#mg-t-res').dataset.value)||3;
-  const microstep=(c.querySelector('#mg-t-micro').value||'').trim();
-  const plannedTime=c.querySelector('#mg-t-plan').value||'';
-  const ritual=(c.querySelector('#mg-t-ritual').value||'').trim();
-  if(id){
-    Object.assign(T_MAP[id],{name,dueDate,importance,resistance,microstep,plannedTime,ritual});
-  } else {
-    const today=todayStr();
-    TASKS.push({id:genId('t'),name,dueDate,importance,resistance,microstep,plannedTime,ritual,createdAt:today,lastTouched:null,done:false});
-  }
+  t.name=name;
+  t.dueDate=document.getElementById('rf-due').value||'';
+  t.plannedTime=document.getElementById('rf-plan').value||'';
+  t.importance=parseInt(document.getElementById('rf-imp').dataset.value)||3;
+  t.resistance=parseInt(document.getElementById('rf-res').dataset.value)||3;
+  t.microstep=(document.getElementById('rf-micro').value||'').trim();
+  t.ritual=(document.getElementById('rf-ritual').value||'').trim();
+  t.reframeNote=(document.getElementById('rf-reframe').value||'').trim();
+  if(t.plannedTime) t.lastNotifiedDate=null; // neuer Plan -> darf wieder erinnern
   saveTasks();
-  mgResetForms();
+  closeRefine();
   renderApp();
 }
 
-function mgDeleteTask(id){
+function deleteTask(id){
   const t=T_MAP[id];
+  if(!t) return;
   if(!confirm(`Aufgabe "${t.name}" wirklich löschen?`)) return;
   TASKS=TASKS.filter(t2=>t2.id!==id);
   saveTasks();
-  mgResetForms();
+  closeRefine();
   renderApp();
 }
 
-function openManage(){
-  mgResetForms();
-  renderManage();
-  document.getElementById('manage-bg').classList.add('open');
+function openRefine(id){
+  renderRefine(id);
+  document.getElementById('refine-bg').classList.add('open');
   document.body.style.overflow='hidden';
 }
-function closeManage(){ document.getElementById('manage-bg').classList.remove('open'); document.body.style.overflow=''; renderManage(); }
-function manageBgClick(e){ if(e.target===document.getElementById('manage-bg')) closeManage(); }
+function closeRefine(){ document.getElementById('refine-bg').classList.remove('open'); document.body.style.overflow=''; }
+function refineBgClick(e){ if(e.target===document.getElementById('refine-bg')) closeRefine(); }
+
+// ── Verwalten (alle Aufgaben) ──────────────────────────────────────────────────
+
+function mtaskHtml(t){
+  const dueStr = t.dueDate ? new Date(t.dueDate+'T12:00:00').toLocaleDateString('de-CH',{day:'numeric',month:'short'}) : 'kein Datum';
+  const stage = taskStage(t);
+  return `<div class="mtask" onclick="openRefine('${t.id}')">
+    <div class="mtask-info">
+      <div class="mtask-name${t.done?' is-done':''}">${esc(t.name)}</div>
+      <div class="mtask-meta">${STAGE_LABEL[stage]} · ${dueStr}${t.plannedTime?' · '+esc(t.plannedTime):''}</div>
+    </div>
+    <div class="mtask-actions">
+      <button class="icon-btn" onclick="event.stopPropagation();markDone('${t.id}')">${t.done?'↺':'✓'}</button>
+    </div>
+  </div>`;
+}
+
+function renderManage(){
+  const el=document.getElementById('manage-content');
+  if(!el) return;
+  const sorted=[...TASKS].sort((a,b)=>(a.done-b.done)||calcTaskScore(b)-calcTaskScore(a));
+  el.innerHTML = sorted.length===0
+    ? `<div class="hint-msg">Noch keine Aufgaben angelegt.</div>`
+    : sorted.map(t=>mtaskHtml(t)).join('');
+
+  const btn=document.getElementById('notif-btn');
+  if(btn){
+    if(notifPermission==='granted'){ btn.textContent='🔔 Erinnerungen aktiv'; btn.disabled=true; }
+    else if(notifPermission==='denied'){ btn.textContent='🔕 Blockiert — in Browser-Einstellungen erlauben'; btn.disabled=true; }
+    else if(notifPermission==='unsupported'){ btn.textContent='Von diesem Browser nicht unterstützt'; btn.disabled=true; }
+    else { btn.textContent='🔔 Erinnerungen aktivieren'; btn.disabled=false; }
+  }
+}
 
 function toggleTips(){
   const el=document.getElementById('tips-block');
   if(el) el.style.display = el.style.display==='none' ? '' : 'none';
 }
 
+function openManage(){
+  renderManage();
+  document.getElementById('manage-bg').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeManage(){ document.getElementById('manage-bg').classList.remove('open'); document.body.style.overflow=''; }
+function manageBgClick(e){ if(e.target===document.getElementById('manage-bg')) closeManage(); }
+
+// ── Arbeitstagebuch-Modal ──────────────────────────────────────────────────────
+
 function renderDiary(){
   const el=document.getElementById('diary-content');
   if(!el) return;
   if(diary.length===0){
-    el.innerHTML = `<div class="all-done-msg">Noch keine Einträge — sobald du eine Aufgabe startest, wird die geplante gegen die tatsächliche Startzeit protokolliert.</div>`;
+    el.innerHTML = `<div class="hint-msg">Noch keine Einträge — sobald du eine Aufgabe startest, wird die geplante gegen die tatsächliche Startzeit protokolliert.</div>`;
     return;
   }
   el.innerHTML = diary.map(e=>{
@@ -652,6 +675,8 @@ function diaryBgClick(e){ if(e.target===document.getElementById('diary-bg')) clo
 function init(){
   renderHeader();
   renderApp();
+  document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') checkReminders(); });
+  setInterval(checkReminders, 60000);
 }
 
 init();

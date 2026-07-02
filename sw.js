@@ -1,4 +1,4 @@
-const CACHE = 'fokus-coach-v1';
+const CACHE = 'fokus-coach-v2';
 const SHELL = ['./','./index.html','./manifest.json'];
 
 self.addEventListener('install', e=>{
