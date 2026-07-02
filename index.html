@@ -134,6 +134,7 @@ input,button,textarea{font-family:inherit;font-size:inherit}
     <div class="hdr-date" id="hdr-date"></div>
   </div>
   <div style="display:flex;gap:8px">
+    <button class="gear-btn" onclick="openHelp()" title="Kurz erklärt">❓</button>
     <button class="gear-btn" onclick="openDiary()" title="Arbeitstagebuch">📔</button>
     <button class="gear-btn" onclick="openManage()" title="Alle Aufgaben">🗂️</button>
   </div>
@@ -184,6 +185,23 @@ input,button,textarea{font-family:inherit;font-size:inherit}
     <div class="modal-title">Aufgabe verfeinern</div>
     <div class="modal-sub">Alles hier ist optional</div>
     <div id="refine-content"></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="help-bg" onclick="helpBgClick(event)">
+  <div class="modal">
+    <button class="modal-close" onclick="closeHelp()">✕</button>
+    <div class="modal-title">👋 Kurz erklärt</div>
+    <div class="modal-sub">So funktioniert Fokus</div>
+    <div style="font-size:13px;color:var(--txt);line-height:1.8">
+      <p style="margin-bottom:12px"><b>1. Eintragen</b><br><span style="color:var(--txt2)">Oben kurz reinschreiben, was du gerade aufschiebst. Nur der Name reicht — mehr brauchst du nicht.</span></p>
+      <p style="margin-bottom:12px"><b>2. Fokus-Karte</b><br><span style="color:var(--txt2)">Zeigt dir automatisch, was gerade am wichtigsten ist — nach Wichtigkeit, wie sehr du es vermeidest und wie lange es schon liegt.</span></p>
+      <p style="margin-bottom:12px"><b>3. Verfeinern</b><br><span style="color:var(--txt2)">Bei jeder Aufgabe optional: Fälligkeit, geplante Startzeit, ein Start-Ritual und ein winziger erster Schritt.</span></p>
+      <p style="margin-bottom:12px"><b>4. ⏱ 5-Minuten-Fokus</b><br><span style="color:var(--txt2)">Ein kurzer Timer, um einfach loszulegen, statt auf den "richtigen" Moment zu warten.</span></p>
+      <p style="margin-bottom:12px"><b>5. 🔔 Erinnerungen</b><br><span style="color:var(--txt2)">In "Alle Aufgaben" aktivierbar — erinnert dich lokal an die geplante Startzeit, solange die App offen oder kürzlich genutzt ist.</span></p>
+      <p style="margin-bottom:4px"><b>6. 📔 Tagebuch</b><br><span style="color:var(--txt2)">Zeigt dir über Zeit, wie gut geplante und tatsächliche Startzeiten zusammenpassen.</span></p>
+    </div>
+    <button class="focus-btn focus-btn-primary" style="width:100%;margin-top:16px" onclick="closeHelp()">Los geht's</button>
   </div>
 </div>
 
@@ -662,6 +680,13 @@ function renderDiary(){
   }).join('');
 }
 
+function openHelp(){
+  document.getElementById('help-bg').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeHelp(){ document.getElementById('help-bg').classList.remove('open'); document.body.style.overflow=''; }
+function helpBgClick(e){ if(e.target===document.getElementById('help-bg')) closeHelp(); }
+
 function openDiary(){
   renderDiary();
   document.getElementById('diary-bg').classList.add('open');
@@ -677,6 +702,10 @@ function init(){
   renderApp();
   document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') checkReminders(); });
   setInterval(checkReminders, 60000);
+  if(!localStorage.getItem('pc-help-seen')){
+    localStorage.setItem('pc-help-seen','1');
+    openHelp();
+  }
 }
 
 init();
