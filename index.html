@@ -41,7 +41,9 @@ input,button,textarea{font-family:inherit;font-size:inherit}
 .quick-add button{width:48px;height:48px;border-radius:14px;border:none;background:var(--accent);color:#fff;font-size:22px;font-weight:700;cursor:pointer;flex-shrink:0}
 .quick-add button:active{opacity:.8}
 
-.streak-line{font-size:12px;color:var(--txt2);margin-bottom:16px;text-align:center}
+.streak-line{display:flex;align-items:center;justify-content:center;gap:8px;font-size:13px;font-weight:600;color:var(--txt2);margin-bottom:16px;text-align:center}
+.streak-sun{display:inline-flex;align-items:center;justify-content:center;font-size:22px;border-radius:50%;transition:box-shadow .4s,transform .4s}
+.streak-count{font-size:15px;font-weight:800;color:var(--txt)}
 
 /* Fokus-Karte */
 .focus-card{background:var(--accent-bg);border-radius:var(--r);padding:22px 20px;margin-bottom:18px}
@@ -62,6 +64,13 @@ input,button,textarea{font-family:inherit;font-size:inherit}
 .reframe-q{font-size:12px;color:var(--warn-txt);line-height:1.5;font-weight:600}
 .reframe-box textarea{width:100%;margin-top:8px;padding:8px 9px;border-radius:8px;border:.5px solid var(--warn-border);background:var(--bg);color:var(--txt);font-size:12px;resize:none;height:48px}
 .reframe-dismiss{font-size:11px;color:var(--warn-txt);opacity:.75;text-decoration:underline;cursor:pointer;margin-top:6px;display:inline-block}
+
+/* Hindernis-Erfassung ("Woran hat's gelegen?") */
+.obstacle-toggle{background:none;border:none;color:var(--txt2);font-size:11px;text-decoration:underline;cursor:pointer;padding:6px 0 0;display:block}
+.obstacle-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.obstacle-chip{padding:7px 12px;border-radius:20px;background:rgba(0,0,0,.055);color:var(--txt);font-size:11px;font-weight:600;border:none;cursor:pointer}
+@media(prefers-color-scheme:dark){.obstacle-chip{background:rgba(255,255,255,.1)}}
+.obstacle-confirm{font-size:11px;color:var(--accent);margin-top:8px;font-weight:600}
 
 /* Später-Liste */
 .sec-hdr{font-size:11px;font-weight:700;color:var(--txt3);margin-bottom:9px;text-transform:uppercase;letter-spacing:.5px}
@@ -199,7 +208,9 @@ input,button,textarea{font-family:inherit;font-size:inherit}
       <p style="margin-bottom:12px"><b>3. Verfeinern</b><br><span style="color:var(--txt2)">Bei jeder Aufgabe optional: Fälligkeit, geplante Startzeit, ein Start-Ritual und ein winziger erster Schritt.</span></p>
       <p style="margin-bottom:12px"><b>4. ⏱ 5-Minuten-Fokus</b><br><span style="color:var(--txt2)">Ein kurzer Timer, um einfach loszulegen, statt auf den "richtigen" Moment zu warten.</span></p>
       <p style="margin-bottom:12px"><b>5. 🔔 Erinnerungen</b><br><span style="color:var(--txt2)">In "Alle Aufgaben" aktivierbar — erinnert dich lokal an die geplante Startzeit, solange die App offen oder kürzlich genutzt ist.</span></p>
-      <p style="margin-bottom:4px"><b>6. 📔 Tagebuch</b><br><span style="color:var(--txt2)">Zeigt dir über Zeit, wie gut geplante und tatsächliche Startzeiten zusammenpassen.</span></p>
+      <p style="margin-bottom:12px"><b>6. 📔 Tagebuch</b><br><span style="color:var(--txt2)">Zeigt dir über Zeit, wie gut geplante und tatsächliche Startzeiten zusammenpassen — inkl. deiner häufigsten Hindernisse.</span></p>
+      <p style="margin-bottom:12px"><b>7. ☀️ Streak-Sonne</b><br><span style="color:var(--txt2)">Strahlt heller, je länger deine Serie an aktiven Tagen läuft.</span></p>
+      <p style="margin-bottom:4px"><b>8. 🤔 Woran hat's gelegen?</b><br><span style="color:var(--txt2)">Wenn etwas nicht klappt: kurz den Grund antippen — hilft dir, eigene Muster zu erkennen.</span></p>
     </div>
     <button class="focus-btn focus-btn-primary" style="width:100%;margin-top:16px" onclick="closeHelp()">Los geht's</button>
   </div>
@@ -220,6 +231,7 @@ input,button,textarea{font-family:inherit;font-size:inherit}
 let TASKS = JSON.parse(localStorage.getItem('pc-tasks')||'[]');
 let streakState = JSON.parse(localStorage.getItem('pc-streak')||'{"count":0,"lastActiveDate":null}');
 let diary = JSON.parse(localStorage.getItem('pc-diary')||'[]');
+let obstacles = JSON.parse(localStorage.getItem('pc-obstacles')||'[]');
 
 let T_MAP = {};
 function rebuildMap(){ T_MAP = Object.fromEntries(TASKS.map(t=>[t.id,t])); }
@@ -234,6 +246,7 @@ function todayStr(){ return new Date().toISOString().split('T')[0]; }
 function saveTasks(){ localStorage.setItem('pc-tasks',JSON.stringify(TASKS)); rebuildMap(); }
 function saveStreak(){ localStorage.setItem('pc-streak',JSON.stringify(streakState)); }
 function saveDiary(){ localStorage.setItem('pc-diary',JSON.stringify(diary)); }
+function saveObstacles(){ localStorage.setItem('pc-obstacles',JSON.stringify(obstacles)); }
 
 function nowTimeStr(){
   const d=new Date();
@@ -308,6 +321,23 @@ function logDiaryEntry(t){
   diary.unshift({date:today, taskId:t.id, taskName:t.name, plannedTime:t.plannedTime||null, actualTime:nowTimeStr()});
   diary = diary.slice(0,80);
   saveDiary();
+}
+
+// Hindernis-Erfassung: freiwillige, einzeltippbare Ursachen-Erfassung ("Woran hat's
+// gelegen?") — macht Muster im eigenen Vermeidungsverhalten sichtbar, analog zur
+// Selbstbeobachtungs-Idee des Arbeitstagebuchs, nur auf die Ursache statt die Zeit bezogen.
+const OBSTACLE_REASONS = ['Keine Zeit','Abgelenkt','Zu müde','Unklar wie anfangen','Überfordert','Keine Lust'];
+
+function logObstacle(taskId, taskName, reason){
+  obstacles.unshift({date:todayStr(), taskId, taskName, reason});
+  obstacles = obstacles.slice(0,100);
+  saveObstacles();
+}
+
+function obstacleSummary(){
+  const counts={};
+  obstacles.forEach(o=>counts[o.reason]=(counts[o.reason]||0)+1);
+  return Object.entries(counts).sort((a,b)=>b[1]-a[1]);
 }
 
 function diaryDiff(e){
@@ -414,6 +444,22 @@ function markDone(id){
 let dismissedReframe = new Set();
 function dismissReframe(id){ dismissedReframe.add(id); renderApp(); }
 
+let obstaclePickerOpen=false, obstacleConfirmedFor=null;
+function toggleObstaclePicker(){
+  obstaclePickerOpen=!obstaclePickerOpen;
+  obstacleConfirmedFor=null;
+  renderFocusStack();
+}
+function pickObstacle(id, reason){
+  const t=T_MAP[id];
+  if(!t) return;
+  logObstacle(id, t.name, reason);
+  obstaclePickerOpen=false;
+  obstacleConfirmedFor=reason;
+  renderFocusStack();
+  setTimeout(()=>{ obstacleConfirmedFor=null; renderFocusStack(); },2500);
+}
+
 function saveReframeNote(id){
   const el=document.getElementById('reframe-note-input');
   if(!el) return;
@@ -428,11 +474,24 @@ function renderHeader(){
     new Date().toLocaleDateString('de-CH',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
 }
 
+// Streak-Sonne: strahlt heller/größer, je länger die Serie läuft (Duolingo-artige
+// Gamification, aber als wachsende Sonne statt Flamme).
+function sunForStreak(n){
+  if(n<=0)  return {emoji:'🌑', glow:'0,0,0,0',   size:20};
+  if(n<3)   return {emoji:'🌤️', glow:'255,214,102,.3', size:22};
+  if(n<7)   return {emoji:'⛅', glow:'255,193,7,.4',   size:24};
+  if(n<14)  return {emoji:'🌞', glow:'255,167,38,.55',  size:26};
+  return              {emoji:'☀️', glow:'255,140,0,.7',   size:28};
+}
+
 function renderStreak(){
   const n=streakState.count||0;
-  document.getElementById('streak-line').textContent = n>0
-    ? `🔥 ${n} Tag${n===1?'':'e'} in Folge`
-    : `Heute ist ein guter Tag für einen neuen Start`;
+  const sun=sunForStreak(n);
+  const el=document.getElementById('streak-line');
+  const sunHtml=`<span class="streak-sun" style="font-size:${sun.size}px;box-shadow:0 0 ${6+n*1.5}px rgba(${sun.glow})">${sun.emoji}</span>`;
+  el.innerHTML = n>0
+    ? `${sunHtml} <span class="streak-count">${n}</span> Tag${n===1?'':'e'} in Folge`
+    : `${sunHtml} Heute ist ein guter Tag für einen neuen Start`;
 }
 
 function activeTasksSorted(){
@@ -467,6 +526,14 @@ function renderFocusStack(){
     ? `<div class="focus-timer" id="timer-display">⏱ ${fmtTimer(timerRemaining)}</div>`
     : `<button class="focus-btn focus-btn-primary" onclick="startTimer('${top.id}')">⏱ 5-Minuten-Fokus</button>`;
 
+  const obstacleHtml = obstacleConfirmedFor
+    ? `<div class="obstacle-confirm">✓ Notiert: ${esc(obstacleConfirmedFor)}</div>`
+    : obstaclePickerOpen
+      ? `<div class="obstacle-chips">${OBSTACLE_REASONS.map(r=>
+          `<button class="obstacle-chip" onclick="pickObstacle('${top.id}','${r}')">${esc(r)}</button>`
+        ).join('')}</div>`
+      : `<button class="obstacle-toggle" onclick="toggleObstaclePicker()">🤔 Woran hat's gelegen?</button>`;
+
   el.innerHTML = `<div class="focus-card">
     <div class="stage-chip">${STAGE_LABEL[stage]}</div>
     <div class="focus-name">${esc(top.name)}</div>
@@ -478,6 +545,7 @@ function renderFocusStack(){
       <button class="focus-btn focus-btn-secondary" onclick="markDone('${top.id}')">✓ Erledigt</button>
       <button class="focus-btn focus-btn-secondary" onclick="openRefine('${top.id}')">Verfeinern</button>
     </div>
+    ${obstacleHtml}
   </div>`;
 }
 
@@ -660,11 +728,17 @@ function manageBgClick(e){ if(e.target===document.getElementById('manage-bg')) c
 function renderDiary(){
   const el=document.getElementById('diary-content');
   if(!el) return;
+
+  const summary=obstacleSummary();
+  const summaryHtml = summary.length>0
+    ? `<div class="hint-msg" style="font-style:normal;margin-bottom:10px">💡 Häufigste Gründe: ${summary.slice(0,3).map(([r,c])=>`${esc(r)} (${c}×)`).join(', ')}</div>`
+    : '';
+
   if(diary.length===0){
-    el.innerHTML = `<div class="hint-msg">Noch keine Einträge — sobald du eine Aufgabe startest, wird die geplante gegen die tatsächliche Startzeit protokolliert.</div>`;
+    el.innerHTML = summaryHtml || `<div class="hint-msg">Noch keine Einträge — sobald du eine Aufgabe startest, wird die geplante gegen die tatsächliche Startzeit protokolliert.</div>`;
     return;
   }
-  el.innerHTML = diary.map(e=>{
+  el.innerHTML = summaryHtml + diary.map(e=>{
     const dateStr = new Date(e.date+'T12:00:00').toLocaleDateString('de-CH',{day:'numeric',month:'short'});
     const diff = diaryDiff(e);
     const timesText = e.plannedTime

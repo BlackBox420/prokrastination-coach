@@ -13,7 +13,9 @@ Kein Therapie- oder Diagnose-Anspruch — ein Produktivitäts-/Coaching-Tool, da
 - **Reframing-Hinweis** bei hohem Widerstand: kurzer, überspringbarer Denkanstoß nach dem ABCDE-Modell ("Was befürchtest du, wenn du jetzt anfängst? Ist das realistisch?").
 - **Arbeitstagebuch**: protokolliert automatisch geplante vs. tatsächliche Startzeit.
 - **Lokale Erinnerungen**: optionale Browser-Benachrichtigung, wenn eine geplante Startzeit erreicht ist — funktioniert nur, während die App offen oder kürzlich genutzt wurde (kein Server im Hintergrund, daher keine Erinnerung bei vollständig geschlossener App, v. a. auf iOS eingeschränkt).
-- **5-Minuten-Fokus-Timer**, Tages-Streak, nicht wertende Sprache (kein Schuld-Framing bei unterbrochener Serie).
+- **5-Minuten-Fokus-Timer**, nicht wertende Sprache (kein Schuld-Framing bei unterbrochener Serie).
+- **Streak-Sonne**: wächst und strahlt heller, je länger die tägliche Serie läuft (Gamification-Element, angelehnt an Duolingo-Streaks).
+- **"Woran hat's gelegen?"**: freiwillige Ein-Tipp-Erfassung von Hindernissen (Zeitmangel, Ablenkung, Unklarheit, Überforderung …), macht eigene Vermeidungsmuster über Zeit im Arbeitstagebuch sichtbar.
 - "Alle Aufgaben"-Bereich zum Anlegen/Bearbeiten/Löschen.
 
 Nicht enthalten: echte Push-Benachrichtigungen bei geschlossener App (bräuchte einen Backend-Baustein), Cloud-Sync zwischen Geräten.
