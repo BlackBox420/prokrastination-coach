@@ -1,3 +1,55 @@
+<!--
+  FOKUS — Prokrastinations-Coach
+  ==============================
+  Progressive Web App (PWA) gegen Aufschieberitis. Single-File-App: der komplette
+  Code (HTML + CSS + JS) liegt in dieser einen index.html, keine Build-Tools, kein
+  eigenes Backend. Alle Daten liegen im localStorage des Browsers, es gibt keinen
+  Cloud-Sync (bewusste Entscheidung, um ohne Server auszukommen).
+
+  GRUNDIDEE
+  Bewusst KEIN Onboarding-Zwang und KEIN Pflichtformular: eine Aufgabe anlegen
+  braucht nur einen Namen (Schnell-Erfassung oben, quickAdd()). Alles andere
+  (Fälligkeit, Wichtigkeit, "Widerstand", geplante Startzeit, Ritual, kleinster
+  erster Schritt) ist optional und wird erst über "Verfeinern" nachgetragen, wenn
+  man es tatsächlich braucht — eine hohe Eintragshürde wäre für eine Anti-
+  Prokrastinations-App selbst kontraproduktiv. Ein Score-Algorithmus (Abschnitt
+  "Score") bestimmt, welche Aufgabe gerade im Vordergrund ("Fokus-Karte") steht.
+
+  Fachlich orientiert an Rödel/Bathen-Gabriel/Rehfeld (Hrsg.), "Perfektionismus,
+  Imposter-Phänomen und Prokrastination" (Springer Gabler, 2025) — insbesondere:
+   - Rubikon-Modell der Handlungsphasen -> taskStage() (Idee/Geplant/Dabei/Erledigt)
+   - Implementation-Intentions-Prinzip -> geplante Startzeit + Start-Ritual
+   - REVT/ABCDE-Ansatz gegen prokrastinationsfördernde Gedanken -> Reframing-Box
+   - Selbstbeobachtung als Wirkfaktor -> Arbeitstagebuch + Hindernis-Erfassung
+
+  AUFBAU DIESER DATEI (von oben nach unten)
+  1. <style>  — CSS in kommentierte Abschnitte gruppiert (Schnell-Erfassung,
+                Fokus-Karte, Reframing-Hinweis, Hindernis-Erfassung, Später-Liste,
+                Modals, Verwalten-Liste, Verfeinern-Formular, Tagebuch).
+  2. <body>   — Header (❓/📔/🗂️-Buttons), Schnell-Erfassungsleiste, Streak-Sonne,
+                Fokus-Karte (wird zur Laufzeit befüllt), Später-Liste, danach alle
+                Bottom-Sheet-Modals (Alle Aufgaben, Aufgabe verfeinern, Kurz
+                erklärt, Arbeitstagebuch).
+  3. <script> — Logik, in Abschnitte gegliedert ("// ── Name ──"):
+       Data           Aufgaben + Streak + Arbeitstagebuch + Hindernis-Log (alles
+                       Nutzerdaten in localStorage) + kleine Hilfsfunktionen
+       Score           Priorisierungs-Algorithmus (welche Aufgabe ist "dran")
+       Streak          Tages-Serie ("wie Duolingo") + die wachsende Streak-Sonne
+       Arbeitstagebuch geplante vs. tatsächliche Startzeit protokollieren
+       Timer           5-Minuten-Fokus-Timer auf der Fokus-Karte
+       Erinnerungen    lokale Browser-Notification, wenn eine geplante Zeit erreicht ist
+       Actions         Klick-Handler, die Daten ändern und neu rendern
+       Render          erzeugt das HTML für Fokus-Karte, Später-Liste, Streak
+       Verfeinern      Formular zum nachträglichen Ergänzen einer Aufgabe
+       Verwalten       Liste aller Aufgaben (Modal "Alle Aufgaben")
+       Arbeitstagebuch-Modal  + Hindernis-Zusammenfassung
+       Init            Startpunkt, wird ganz am Ende der Datei aufgerufen
+
+  DATENFLUSS IN KÜRZE
+  Wie beim Lernplan: State ändern -> save*() (localStorage) -> betroffene
+  render*()-Funktion(en) neu aufrufen. Kein Framework — jede render*()-Funktion
+  baut ihr HTML als Text und setzt es per .innerHTML.
+-->
 <!DOCTYPE html>
 <html lang="de">
 <head>
@@ -227,17 +279,30 @@ input,button,textarea{font-family:inherit;font-size:inherit}
 
 <script>
 // ── Data ─────────────────────────────────────────────────────────────────────
+// TASKS: [{id, name, dueDate, importance (1-5), resistance (1-5), microstep,
+//          plannedTime, ritual, reframeNote, createdAt, lastTouched,
+//          lastNotifiedDate, done}] — praktisch alle Felder außer name/id sind
+// optional und werden per quickAdd() zunächst leer/mit Default angelegt, dann
+// bei Bedarf über "Verfeinern" (renderRefine/saveRefine) nachgetragen.
 
 let TASKS = JSON.parse(localStorage.getItem('pc-tasks')||'[]');
 let streakState = JSON.parse(localStorage.getItem('pc-streak')||'{"count":0,"lastActiveDate":null}');
 let diary = JSON.parse(localStorage.getItem('pc-diary')||'[]');
 let obstacles = JSON.parse(localStorage.getItem('pc-obstacles')||'[]');
 
+// T_MAP = TASKS, aber nach id indiziert (T_MAP[id] statt TASKS.find(...)).
+// Wichtig: T_MAP[id] ist dieselbe Objekt-Referenz wie das passende Element in
+// TASKS[] — Object.assign/Feld-Zuweisungen auf T_MAP[id] ändern daher direkt
+// auch TASKS[]. rebuildMap() muss nach jeder Änderung an TASKS neu laufen,
+// das übernimmt saveTasks() automatisch.
 let T_MAP = {};
 function rebuildMap(){ T_MAP = Object.fromEntries(TASKS.map(t=>[t.id,t])); }
 rebuildMap();
 
 function genId(prefix){ return prefix+'_'+Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+// HTML-Escaping für alles, was die Person selbst eingegeben hat (Aufgaben-Namen,
+// Ritual-Text, ...) — diese Strings werden per innerHTML eingesetzt, ohne esc()
+// wäre ein Aufgabenname wie "<img onerror=...>" eine XSS-Lücke.
 function esc(str){
   return String(str??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
@@ -254,21 +319,39 @@ function nowTimeStr(){
 }
 
 // ── Score ─────────────────────────────────────────────────────────────────────
+// calcTaskScore(aufgabe) liefert eine einzelne Zahl, nach der überall sortiert
+// wird (activeTasksSorted() -> Fokus-Karte + Später-Liste + Verwalten-Liste).
+// Höher = sollte gerade jetzt angegangen werden. Score = Wichtigkeit × drei
+// 0..~1-Faktoren, die alle unabhängig voneinander die Priorität hochtreiben
+// können: taskUrgency() (Fälligkeit), resistanceBoost (Widerstand — siehe unten)
+// und taskStaleness() (wie lange die Aufgabe schon unangetastet liegt).
 
 function daysUntilDate(ds){ return Math.max(0,(new Date(ds+'T12:00:00')-new Date())/86400000); }
 function daysSinceDate(ds){ return Math.max(0,(new Date(todayStr()+'T12:00:00')-new Date(ds+'T12:00:00'))/86400000); }
 
+// Ohne Fälligkeitsdatum ein milder, konstanter Dringlichkeits-Sockel (0.35),
+// damit Aufgaben ohne Datum nicht komplett von der Priorisierung ausgeschlossen
+// sind. Mit Datum steigt die Dringlichkeit in den letzten 14 Tagen vor Fälligkeit an.
 function taskUrgency(t){
   if(!t.dueDate) return 0.35;
   const days = daysUntilDate(t.dueDate);
   return Math.max(0.15, Math.min(1, 1-days/14));
 }
 
+// Wie lange eine Aufgabe schon nicht mehr angefasst wurde (seit lastTouched,
+// oder seit dem Anlegen falls noch nie), gedeckelt bei 10 Tagen = maximaler
+// "Staleness"-Wert 1. Verhindert, dass unangenehme Aufgaben dauerhaft nach
+// unten in der Liste verschwinden, nur weil man sie ignoriert.
 function taskStaleness(t){
   const ref = t.lastTouched || t.createdAt;
   return Math.min(1, daysSinceDate(ref)/10);
 }
 
+// resistanceBoost: höherer "Widerstand" (wie sehr man die Aufgabe vermeidet,
+// bewusst getrennt von reiner Schwierigkeit) erhöht die Priorität statt sie zu
+// senken — Prinzip "das Unangenehme zuerst angehen, bevor sich die Vermeidung
+// weiter verstärkt" (siehe auch die Reframing-Box weiter unten, die genau bei
+// hohem Widerstand erscheint).
 function calcTaskScore(t){
   const urgency = taskUrgency(t);
   const resistanceBoost = 0.6+t.resistance*0.18;
@@ -276,6 +359,7 @@ function calcTaskScore(t){
   return t.importance*urgency*resistanceBoost*(0.5+staleness*0.5);
 }
 
+// Score -> Ampelfarbe (rot=dringend ... grau=erledigt/unwichtig), genutzt für die Score-Zahl.
 function scoreCol(score){
   if(score>3.0) return '#ff3b30';
   if(score>1.5) return '#ff9500';
@@ -294,7 +378,15 @@ function taskStage(t){
 const STAGE_LABEL = {idee:'💭 Idee',geplant:'🗓️ Geplant',dabei:'🔥 Dabei',erledigt:'✓ Erledigt'};
 
 // ── Streak ────────────────────────────────────────────────────────────────────
+// Zählt Tage in Folge, an denen mind. eine Aufgabe "berührt" wurde (angefangen
+// oder erledigt) — wie bei Duolingo. Visualisiert wird das weiter unten
+// (sunForStreak()/renderStreak()) als wachsende, heller strahlende Sonne statt
+// einer Flamme.
 
+// Wird von touchTask() und markDone() aufgerufen. Zählt hoch, wenn gestern schon
+// aktiv war (Serie geht weiter), setzt auf 1 zurück, wenn ein Tag ausgelassen
+// wurde (kein Schuld-Framing in der UI dafür — einfach ein Neustart bei 1).
+// lastActiveDate===today verhindert Mehrfachzählung bei mehreren Aktionen am selben Tag.
 function bumpStreak(){
   const today = todayStr();
   if(streakState.lastActiveDate===today) return;
@@ -305,6 +397,8 @@ function bumpStreak(){
   saveStreak();
 }
 
+// Markiert eine Aufgabe als heute angefasst (lastTouched) und zählt den Streak.
+// Wird von markStarted() und vom Timer-Ablauf (startTimer) aufgerufen.
 function touchTask(id){
   const t = T_MAP[id];
   if(!t) return;
@@ -314,7 +408,14 @@ function touchTask(id){
 }
 
 // ── Arbeitstagebuch ───────────────────────────────────────────────────────────
+// Protokolliert automatisch, wann eine Aufgabe tatsächlich begonnen wurde, im
+// Vergleich zur geplanten Startzeit (falls eine gesetzt ist) — die zentrale
+// Selbstbeobachtungs-Komponente aus der Prokrastinationsforschung (siehe
+// Datei-Kopfkommentar). Wird angezeigt im 📔-Modal (renderDiary weiter unten).
 
+// Höchstens EIN Eintrag pro Aufgabe und Tag (sonst würde z.B. mehrfaches
+// Antippen von "Angefangen" den Tagebuch-Eintrag verfälschen). Aufgerufen von
+// startTimer() und markStarted().
 function logDiaryEntry(t){
   const today = todayStr();
   if(diary.some(e=>e.taskId===t.id && e.date===today)) return;
@@ -328,18 +429,23 @@ function logDiaryEntry(t){
 // Selbstbeobachtungs-Idee des Arbeitstagebuchs, nur auf die Ursache statt die Zeit bezogen.
 const OBSTACLE_REASONS = ['Keine Zeit','Abgelenkt','Zu müde','Unklar wie anfangen','Überfordert','Keine Lust'];
 
+// Aufgerufen von pickObstacle() (Klick auf einen der Gründe-Chips auf der Fokus-Karte).
 function logObstacle(taskId, taskName, reason){
   obstacles.unshift({date:todayStr(), taskId, taskName, reason});
   obstacles = obstacles.slice(0,100);
   saveObstacles();
 }
 
+// Zählt, wie oft jeder Grund vorkommt, absteigend sortiert — Grundlage für die
+// "Häufigste Gründe"-Zeile oben im Arbeitstagebuch-Modal (renderDiary()).
 function obstacleSummary(){
   const counts={};
   obstacles.forEach(o=>counts[o.reason]=(counts[o.reason]||0)+1);
   return Object.entries(counts).sort((a,b)=>b[1]-a[1]);
 }
 
+// Vergleicht geplante mit tatsächlicher Startzeit eines Tagebuch-Eintrags; null,
+// wenn für die Aufgabe gar keine Startzeit geplant war (dann gibt es nichts zu vergleichen).
 function diaryDiff(e){
   if(!e.plannedTime) return null;
   const [ph,pm]=e.plannedTime.split(':').map(Number);
@@ -350,11 +456,19 @@ function diaryDiff(e){
 }
 
 // ── Timer ─────────────────────────────────────────────────────────────────────
+// Einfacher 5-Minuten-Countdown auf der Fokus-Karte ("einfach anfangen" statt
+// auf den "richtigen" Moment warten). Modul-globaler State statt pro Aufgabe,
+// da immer nur ein Timer gleichzeitig laufen kann.
 
 let timerActive=false, timerInterval=null, timerRemaining=0, timerTaskId=null;
 
 function fmtTimer(sec){ return Math.floor(sec/60)+':'+String(sec%60).padStart(2,'0'); }
 
+// Startet den Timer für eine Aufgabe (loggt sofort einen Tagebuch-Eintrag, da
+// das Starten selbst schon als "angefangen" zählt). Am Ende: NICHT mit einem
+// blockierenden alert() unterbrechen (würde den Countdown-Moment stören) —
+// stattdessen wird der Text im Countdown-Element selbst kurz auf eine
+// Erfolgsmeldung geändert und nach 3s automatisch zurück auf den Start-Button.
 function startTimer(id){
   if(timerActive) return;
   timerActive=true; timerRemaining=5*60; timerTaskId=id;
@@ -375,14 +489,24 @@ function startTimer(id){
 }
 
 // ── Erinnerungen (lokal, ohne Backend) ────────────────────────────────────────
+// Bewusst ohne Server: echte Push-Benachrichtigungen bei komplett geschlossener
+// App würden einen Backend-Baustein brauchen (siehe README). Stattdessen prüft
+// checkReminders() periodisch (Init unten: alle 60s + bei jedem Sichtbar-Werden
+// des Tabs), ob eine geplante Startzeit erreicht wurde — funktioniert also nur,
+// während die App offen oder kürzlich im Hintergrund war.
 
 let notifPermission = ('Notification' in window) ? Notification.permission : 'unsupported';
 
+// Button "🔔 Erinnerungen aktivieren" in "Alle Aufgaben": fragt den Browser um
+// Erlaubnis gefragt (einmalig, Ergebnis wird vom Browser selbst gemerkt).
 function requestNotifPermission(){
   if(!('Notification' in window)){ alert('Erinnerungen werden von diesem Browser nicht unterstützt.'); return; }
   Notification.requestPermission().then(p=>{ notifPermission=p; renderManage(); });
 }
 
+// Zeigt die eigentliche Benachrichtigung an. Über den Service Worker (falls
+// registriert), damit sie auch bei einem im Hintergrund liegenden Tab (Android)
+// erscheinen kann; sonst als direkte Notification im Vordergrund-Tab.
 function fireReminder(t){
   const title = '⏰ '+t.name;
   const body = t.ritual ? t.ritual : 'Zeit für den nächsten kleinen Schritt.';
@@ -393,6 +517,10 @@ function fireReminder(t){
   }
 }
 
+// Geht alle Aufgaben mit geplanter Startzeit durch: sobald die Uhrzeit erreicht/
+// überschritten ist und heute noch nicht dafür erinnert wurde (lastNotifiedDate),
+// wird einmalig erinnert. lastNotifiedDate verhindert Mehrfach-Benachrichtigung
+// bei jedem der folgenden 60s-Checks am selben Tag.
 function checkReminders(){
   if(notifPermission!=='granted') return;
   const nowStr = nowTimeStr();
@@ -411,7 +539,11 @@ function checkReminders(){
 }
 
 // ── Actions ───────────────────────────────────────────────────────────────────
+// Handler, die aus onclick-Attributen im gerenderten HTML aufgerufen werden.
 
+// Die Schnell-Erfassung: legt eine Aufgabe NUR mit Namen an, alle anderen Felder
+// bekommen neutrale Defaults (Wichtigkeit/Widerstand = 3 = Mitte). Das ist die
+// bewusst einzige Pflicht-Aktion der ganzen App (siehe Datei-Kopfkommentar).
 function quickAdd(){
   const input=document.getElementById('quick-add-input');
   const name=(input.value||'').trim();
@@ -423,6 +555,8 @@ function quickAdd(){
   renderApp();
 }
 
+// "Angefangen"-Button: protokolliert im Tagebuch + zählt für den Streak,
+// OHNE die Aufgabe als erledigt zu markieren.
 function markStarted(id){
   const t=T_MAP[id];
   if(t) logDiaryEntry(t);
@@ -430,6 +564,7 @@ function markStarted(id){
   renderApp();
 }
 
+// "✓ Erledigt"-Button, toggelbar (nochmal klicken macht es rückgängig).
 function markDone(id){
   const t=T_MAP[id];
   if(!t) return;
@@ -441,15 +576,23 @@ function markDone(id){
   renderApp();
 }
 
+// Merkt sich (nur im Speicher, nicht persistiert), für welche Aufgaben die
+// Reframing-Box schon weggeklickt wurde, damit sie nicht bei jedem Re-Render
+// wieder aufploppt, solange man auf der Seite bleibt.
 let dismissedReframe = new Set();
 function dismissReframe(id){ dismissedReframe.add(id); renderApp(); }
 
+// State für die "🤔 Woran hat's gelegen?"-Chips auf der Fokus-Karte: entweder
+// zugeklappt (Button sichtbar), aufgeklappt (Gründe-Chips sichtbar) oder gerade
+// mit einer kurzen Bestätigung nach der Auswahl (siehe pickObstacle unten).
 let obstaclePickerOpen=false, obstacleConfirmedFor=null;
 function toggleObstaclePicker(){
   obstaclePickerOpen=!obstaclePickerOpen;
   obstacleConfirmedFor=null;
   renderFocusStack();
 }
+// Klick auf einen der Gründe-Chips: loggt den Grund, zeigt kurz "✓ Notiert" und
+// klappt nach 2.5s automatisch wieder auf den Toggle-Button zurück.
 function pickObstacle(id, reason){
   const t=T_MAP[id];
   if(!t) return;
@@ -460,6 +603,7 @@ function pickObstacle(id, reason){
   setTimeout(()=>{ obstacleConfirmedFor=null; renderFocusStack(); },2500);
 }
 
+// Speichert die Freitext-Notiz in der Reframing-Box (onchange, kein eigener Button).
 function saveReframeNote(id){
   const el=document.getElementById('reframe-note-input');
   if(!el) return;
@@ -468,6 +612,8 @@ function saveReframeNote(id){
 }
 
 // ── Render ────────────────────────────────────────────────────────────────────
+// Wie beim Lernplan: jede render*()-Funktion baut ihren Teil des HTML aus dem
+// aktuellen State neu und setzt ihn per .innerHTML — kein Diffing, kein Framework.
 
 function renderHeader(){
   document.getElementById('hdr-date').textContent=
@@ -494,10 +640,17 @@ function renderStreak(){
     : `${sunHtml} Heute ist ein guter Tag für einen neuen Start`;
 }
 
+// Alle offenen (nicht erledigten) Aufgaben, nach Score sortiert. Das erste
+// Element ist die Aufgabe, die auf der Fokus-Karte prominent gezeigt wird; der
+// Rest landet in der "Später"-Liste (siehe renderFocusStack/renderLaterList).
 function activeTasksSorted(){
   return TASKS.filter(t=>!t.done).map(t=>({...t,score:calcTaskScore(t)})).sort((a,b)=>b.score-a.score);
 }
 
+// Die große Karte oben: Name + Rubikon-Phasen-Chip der Top-Aufgabe, ggf.
+// Reframing-Box (bei hohem Widerstand), geplante Zeit/Ritual/Mikroschritt,
+// Timer/Angefangen/Erledigt/Verfeinern-Buttons und der Hindernis-Button/Chips.
+// Leerer Zustand (keine Aufgaben) zeigt stattdessen nur einen Hinweistext.
 function renderFocusStack(){
   const active = activeTasksSorted();
   const el = document.getElementById('focus-stack');
@@ -549,6 +702,8 @@ function renderFocusStack(){
   </div>`;
 }
 
+// Alle offenen Aufgaben AUSSER der Top-Aufgabe (die steht schon auf der
+// Fokus-Karte) als kompakte, antippbare Zeilen (öffnen "Verfeinern").
 function renderLaterList(){
   const active = activeTasksSorted().slice(1);
   document.getElementById('later-list').innerHTML = active.length===0
@@ -563,6 +718,8 @@ function renderLaterList(){
       }).join('');
 }
 
+// Sammel-Funktion: nach so gut wie jeder Datenänderung aufgerufen, damit wirklich
+// alle betroffenen Ansichten synchron bleiben (inkl. eines Erinnerungs-Checks).
 function renderApp(){
   renderStreak();
   renderFocusStack();
@@ -572,7 +729,13 @@ function renderApp(){
 }
 
 // ── Verfeinern (einzelne Aufgabe) ─────────────────────────────────────────────
+// Das "Verfeinern"-Modal ist der einzige Ort, an dem alle optionalen Felder
+// einer Aufgabe auf einmal bearbeitet werden können (öffnet über openRefine(),
+// erreichbar von der Fokus-Karte, der Später-Liste und der Verwalten-Liste aus).
 
+// Reihe von 1-5 antippbaren Punkten für Wichtigkeit/Widerstand. value wird als
+// data-value am Container gespeichert (siehe pickDot) und beim Speichern
+// (saveRefine) von dort wieder ausgelesen.
 function dotPicker(id, value){
   return `<div class="dot-picker" id="${id}" data-value="${value}">${Array.from({length:5},(_,i)=>{
     const v=i+1;
@@ -591,6 +754,8 @@ function pickDot(btn,val){
   });
 }
 
+// Baut das komplette Verfeinern-Formular für eine Aufgabe (alle optionalen
+// Felder vorbefüllt). Speichern läuft über saveRefine(id), Löschen über deleteTask(id).
 function renderRefine(id){
   const t=T_MAP[id];
   const el=document.getElementById('refine-content');
@@ -640,6 +805,8 @@ function renderRefine(id){
   `;
 }
 
+// Liest alle Formularfelder aus dem Verfeinern-Modal aus und schreibt sie auf
+// die Aufgabe (T_MAP[id] ist dieselbe Referenz wie in TASKS[], siehe Data-Abschnitt).
 function saveRefine(id){
   const t=T_MAP[id];
   if(!t) return;
@@ -659,6 +826,8 @@ function saveRefine(id){
   renderApp();
 }
 
+// Löscht eine Aufgabe endgültig (mit Rückfrage), aufrufbar über den
+// "Aufgabe löschen"-Link unten im Verfeinern-Modal.
 function deleteTask(id){
   const t=T_MAP[id];
   if(!t) return;
@@ -669,6 +838,10 @@ function deleteTask(id){
   renderApp();
 }
 
+// Alle Modals in dieser App (Verwalten, Verfeinern, Kurz erklärt, Tagebuch)
+// folgen demselben Bottom-Sheet-Muster: classList.add/remove('open') löst die
+// CSS-Transition aus, *BgClick(e) schließt beim Klick auf den abgedunkelten
+// Hintergrund (nicht beim Klick auf das Sheet selbst).
 function openRefine(id){
   renderRefine(id);
   document.getElementById('refine-bg').classList.add('open');
@@ -678,7 +851,12 @@ function closeRefine(){ document.getElementById('refine-bg').classList.remove('o
 function refineBgClick(e){ if(e.target===document.getElementById('refine-bg')) closeRefine(); }
 
 // ── Verwalten (alle Aufgaben) ──────────────────────────────────────────────────
+// Das 🗂️-Modal: zeigt WIRKLICH alle Aufgaben (auch erledigte), zum schnellen
+// Überblick und Aufräumen. Enthält außerdem den Erinnerungen-Aktivieren-Button
+// und die aufklappbaren Arbeitsplatz-Tipps.
 
+// Eine einzelne Zeile in der "Alle Aufgaben"-Liste (Name, Phase, Datum,
+// geplante Zeit + Erledigt/Wieder-öffnen-Icon). Antippen öffnet "Verfeinern".
 function mtaskHtml(t){
   const dueStr = t.dueDate ? new Date(t.dueDate+'T12:00:00').toLocaleDateString('de-CH',{day:'numeric',month:'short'}) : 'kein Datum';
   const stage = taskStage(t);
@@ -693,6 +871,8 @@ function mtaskHtml(t){
   </div>`;
 }
 
+// Zeichnet die komplette Liste (offene zuerst nach Score, erledigte danach) und
+// aktualisiert den Text/Zustand des Erinnerungen-Buttons je nach Notification-Permission.
 function renderManage(){
   const el=document.getElementById('manage-content');
   if(!el) return;
@@ -725,6 +905,9 @@ function manageBgClick(e){ if(e.target===document.getElementById('manage-bg')) c
 
 // ── Arbeitstagebuch-Modal ──────────────────────────────────────────────────────
 
+// Zeigt oben die "Häufigste Gründe"-Zusammenfassung (aus obstacleSummary(),
+// falls schon Hindernisse geloggt wurden), danach jeden Tagebuch-Eintrag mit
+// geplanter vs. tatsächlicher Startzeit + Abweichung (diaryDiff()).
 function renderDiary(){
   const el=document.getElementById('diary-content');
   if(!el) return;
@@ -770,6 +953,10 @@ function closeDiary(){ document.getElementById('diary-bg').classList.remove('ope
 function diaryBgClick(e){ if(e.target===document.getElementById('diary-bg')) closeDiary(); }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
+// Einstiegspunkt: einmal beim Laden der Seite ausgeführt (Aufruf init() steht
+// direkt danach, ganz unten in der Datei). Zeichnet die App einmal initial,
+// richtet den periodischen Erinnerungs-Check ein (siehe Abschnitt "Erinnerungen")
+// und zeigt beim allerersten jemals erfolgten Besuch automatisch das Tutorial-Modal.
 
 function init(){
   renderHeader();
