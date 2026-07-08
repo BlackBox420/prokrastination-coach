@@ -279,11 +279,19 @@ input,button,textarea{font-family:inherit;font-size:inherit}
 
 <script>
 // ── Data ─────────────────────────────────────────────────────────────────────
-// TASKS: [{id, name, dueDate, importance (1-5), resistance (1-5), microstep,
-//          plannedTime, ritual, reframeNote, createdAt, lastTouched,
+// TASKS: [{id, name, dueDate, importance (1-5), resistance (1-5), confidence (1-5),
+//          microstep, plannedTime, ritual, reframeNote, createdAt, lastTouched,
 //          lastNotifiedDate, done}] — praktisch alle Felder außer name/id sind
 // optional und werden per quickAdd() zunächst leer/mit Default angelegt, dann
 // bei Bedarf über "Verfeinern" (renderRefine/saveRefine) nachgetragen.
+//
+// confidence ("Zutrauen") ist bewusst getrennt von resistance ("Widerstand"):
+// Selbstwirksamkeitserwartung ist in der Prokrastinationsforschung ein von der
+// Aufgaben-Aversivität unabhängiger Prädiktor (Steel, 2007; Temporal Motivation
+// Theory nach Steel & König, 2006 — Motivation = Erwartung×Wert / Impulsivität×
+// Verzögerung). Eine Aufgabe kann also niedrigen Widerstand, aber trotzdem
+// wenig Zutrauen auslösen (z. B. aus Unsicherheit, wie anzufangen ist) — siehe
+// taskConfidenceBoost() im Score-Abschnitt.
 
 let TASKS = JSON.parse(localStorage.getItem('pc-tasks')||'[]');
 let streakState = JSON.parse(localStorage.getItem('pc-streak')||'{"count":0,"lastActiveDate":null}');
@@ -352,11 +360,34 @@ function taskStaleness(t){
 // senken — Prinzip "das Unangenehme zuerst angehen, bevor sich die Vermeidung
 // weiter verstärkt" (siehe auch die Reframing-Box weiter unten, die genau bei
 // hohem Widerstand erscheint).
+//
+// confidenceBoost: niedriges Zutrauen erhöht die Priorität ebenfalls, aber aus
+// einem anderen Grund als resistanceBoost — es geht nicht um Vermeidung eines
+// unangenehmen Gefühls, sondern um mangelnde Erfolgserwartung (Selbstwirksam-
+// keit), die laut Forschung eigenständig mit Prokrastination korreliert (siehe
+// Datenmodell-Kommentar oben). Bei Default (confidence=3, wie bei allen
+// Altdaten ohne dieses Feld) ergibt sich Faktor 1 — bestehende Scores bleiben
+// dadurch unverändert, das Feld wirkt sich erst aus, wenn es aktiv gesetzt wird.
+function taskConfidenceBoost(t){
+  return 1+(3-(t.confidence||3))*0.1;
+}
+
+// obstacleBoost: wurde eine Aufgabe bereits wiederholt mit einem Grund geloggt,
+// der auf Feststecken statt bloßem Zeitmangel hindeutet ("Unklar wie anfangen",
+// "Überfordert" — siehe NEEDS_BREAKDOWN_REASONS), erhöht das die Priorität
+// zusätzlich. Ohne solche Einträge ist der Faktor 1 (kein Effekt auf Altdaten/
+// neue Aufgaben ohne Historie). Schließt den Kreis zwischen der Hindernis-
+// Erfassung ("Woran hat's gelegen?") und der eigentlichen Priorisierung, statt
+// die geloggten Gründe nur im Arbeitstagebuch anzuzeigen.
+function taskObstacleBoost(t){
+  return 1+Math.min(taskObstacleCount(t),3)*0.1;
+}
+
 function calcTaskScore(t){
   const urgency = taskUrgency(t);
   const resistanceBoost = 0.6+t.resistance*0.18;
   const staleness = taskStaleness(t);
-  return t.importance*urgency*resistanceBoost*(0.5+staleness*0.5);
+  return t.importance*urgency*resistanceBoost*taskConfidenceBoost(t)*taskObstacleBoost(t)*(0.5+staleness*0.5);
 }
 
 // Score -> Ampelfarbe (rot=dringend ... grau=erledigt/unwichtig), genutzt für die Score-Zahl.
@@ -428,6 +459,18 @@ function logDiaryEntry(t){
 // gelegen?") — macht Muster im eigenen Vermeidungsverhalten sichtbar, analog zur
 // Selbstbeobachtungs-Idee des Arbeitstagebuchs, nur auf die Ursache statt die Zeit bezogen.
 const OBSTACLE_REASONS = ['Keine Zeit','Abgelenkt','Zu müde','Unklar wie anfangen','Überfordert','Keine Lust'];
+
+// Teilmenge der Gründe, die eher auf "Aufgabe zu groß/unklar" als auf reinen
+// Zeit-/Motivationsmangel hindeuten — genutzt von taskObstacleBoost() im
+// Score-Abschnitt, um wiederholtes Feststecken in der Priorisierung sichtbar
+// zu machen statt es nur im Tagebuch zu protokollieren.
+const NEEDS_BREAKDOWN_REASONS = ['Unklar wie anfangen','Überfordert'];
+
+// Zählt, wie oft eine Aufgabe mit einem der NEEDS_BREAKDOWN_REASONS geloggt
+// wurde (über die gesamte gespeicherte Historie, siehe obstacles-Cap oben).
+function taskObstacleCount(t){
+  return obstacles.filter(o=>o.taskId===t.id && NEEDS_BREAKDOWN_REASONS.includes(o.reason)).length;
+}
 
 // Aufgerufen von pickObstacle() (Klick auf einen der Gründe-Chips auf der Fokus-Karte).
 function logObstacle(taskId, taskName, reason){
@@ -549,7 +592,7 @@ function quickAdd(){
   const name=(input.value||'').trim();
   if(!name) return;
   const today=todayStr();
-  TASKS.push({id:genId('t'),name,dueDate:'',importance:3,resistance:3,microstep:'',plannedTime:'',ritual:'',reframeNote:'',createdAt:today,lastTouched:null,lastNotifiedDate:null,done:false});
+  TASKS.push({id:genId('t'),name,dueDate:'',importance:3,resistance:3,confidence:3,microstep:'',plannedTime:'',ritual:'',reframeNote:'',createdAt:today,lastTouched:null,lastNotifiedDate:null,done:false});
   saveTasks();
   input.value='';
   renderApp();
@@ -581,6 +624,12 @@ function markDone(id){
 // wieder aufploppt, solange man auf der Seite bleibt.
 let dismissedReframe = new Set();
 function dismissReframe(id){ dismissedReframe.add(id); renderApp(); }
+
+// Analog zu dismissedReframe, aber für die Zutrauens-Box (siehe renderFocusStack) —
+// eigenes Set, weil Widerstand und Zutrauen unabhängig hoch/niedrig sein können
+// und daher unabhängig voneinander weggeklickt werden können sollen.
+let dismissedConfidence = new Set();
+function dismissConfidence(id){ dismissedConfidence.add(id); renderApp(); }
 
 // State für die "🤔 Woran hat's gelegen?"-Chips auf der Fokus-Karte: entweder
 // zugeklappt (Button sichtbar), aufgeklappt (Gründe-Chips sichtbar) oder gerade
@@ -667,12 +716,21 @@ function renderFocusStack(){
   if(top.plannedTime) detailParts.push(`🕐 Geplant: <b>${esc(top.plannedTime)}</b>`);
   if(top.ritual) detailParts.push(`Ritual: ${esc(top.ritual)}`);
   if(top.microstep) detailParts.push(`👉 ${esc(top.microstep)}`);
+  const obstacleCount = taskObstacleCount(top);
+  if(obstacleCount>=2) detailParts.push(`🔁 Schon ${obstacleCount}× als "unklar/überfordernd" notiert`);
   const detailHtml = detailParts.length ? `<div class="focus-detail">${detailParts.join(' · ')}</div>` : '';
 
   const reframeHtml = (top.resistance>=4 && !dismissedReframe.has(top.id)) ? `
     <div class="reframe-box">
       <div class="reframe-q">Was befürchtest du, wenn du jetzt anfängst? Ist das realistisch? <span class="reframe-dismiss" onclick="dismissReframe('${top.id}')">Überspringen</span></div>
       <textarea id="reframe-note-input" placeholder="Kurze Notiz (optional)" onchange="saveReframeNote('${top.id}')">${esc(top.reframeNote||'')}</textarea>
+    </div>` : '';
+
+  // Eigenständig von reframeHtml: adressiert mangelndes Zutrauen (Selbstwirksamkeit),
+  // nicht Angst/Vermeidung — daher andere Frage und eigener Dismiss-State.
+  const confidenceHtml = ((top.confidence||3)<=2 && !dismissedConfidence.has(top.id)) ? `
+    <div class="reframe-box">
+      <div class="reframe-q">Du traust dir das gerade wenig zu. Was wäre ein kleinerer erster Schritt, den du dir zutraust? <span class="reframe-dismiss" onclick="dismissConfidence('${top.id}')">Überspringen</span></div>
     </div>` : '';
 
   const timerHtml = (timerActive && timerTaskId===top.id)
@@ -691,6 +749,7 @@ function renderFocusStack(){
     <div class="stage-chip">${STAGE_LABEL[stage]}</div>
     <div class="focus-name">${esc(top.name)}</div>
     ${reframeHtml}
+    ${confidenceHtml}
     ${detailHtml}
     <div class="focus-actions">
       ${timerHtml}
@@ -786,6 +845,10 @@ function renderRefine(id){
       </div>
     </div>
     <div class="field">
+      <label>Zutrauen, das zu schaffen</label>
+      ${dotPicker('rf-conf', t.confidence||3)}
+    </div>
+    <div class="field">
       <label>Kleinster erster Schritt (optional)</label>
       <textarea id="rf-micro" placeholder="z.B. Ordner mit Belegen auf den Tisch legen">${esc(t.microstep||'')}</textarea>
     </div>
@@ -817,6 +880,7 @@ function saveRefine(id){
   t.plannedTime=document.getElementById('rf-plan').value||'';
   t.importance=parseInt(document.getElementById('rf-imp').dataset.value)||3;
   t.resistance=parseInt(document.getElementById('rf-res').dataset.value)||3;
+  t.confidence=parseInt(document.getElementById('rf-conf').dataset.value)||3;
   t.microstep=(document.getElementById('rf-micro').value||'').trim();
   t.ritual=(document.getElementById('rf-ritual').value||'').trim();
   t.reframeNote=(document.getElementById('rf-reframe').value||'').trim();
