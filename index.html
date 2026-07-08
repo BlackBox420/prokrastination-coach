@@ -267,7 +267,9 @@ input,button,textarea{font-family:inherit;font-size:inherit}
       <p style="margin-bottom:12px"><b>5. 🔔 Erinnerungen</b><br><span style="color:var(--txt2)">In "Alle Aufgaben" aktivierbar — erinnert dich lokal an die geplante Startzeit, solange die App offen oder kürzlich genutzt ist.</span></p>
       <p style="margin-bottom:12px"><b>6. 📔 Tagebuch</b><br><span style="color:var(--txt2)">Zeigt dir über Zeit, wie gut geplante und tatsächliche Startzeiten zusammenpassen — inkl. deiner häufigsten Hindernisse.</span></p>
       <p style="margin-bottom:12px"><b>7. ☀️ Streak-Sonne</b><br><span style="color:var(--txt2)">Strahlt heller, je länger deine Serie an aktiven Tagen läuft.</span></p>
-      <p style="margin-bottom:4px"><b>8. 🤔 Woran hat's gelegen?</b><br><span style="color:var(--txt2)">Wenn etwas nicht klappt: kurz den Grund antippen — hilft dir, eigene Muster zu erkennen.</span></p>
+      <p style="margin-bottom:12px"><b>8. 🤔 Woran hat's gelegen?</b><br><span style="color:var(--txt2)">Wenn etwas nicht klappt: kurz den Grund antippen — hilft dir, eigene Muster zu erkennen.</span></p>
+      <p style="margin-bottom:12px"><b>9. ⏳ Arbeitszeit begrenzen</b><br><span style="color:var(--txt2)">Statt "ich muss durcharbeiten, bis es fertig ist": eine feste Zeit, danach darfst du bewusst aufhören — auch wenn's nicht fertig ist. Nur verfügbar, wenn keine Frist nah bevorsteht.</span></p>
+      <p style="margin-bottom:4px"><b>10. 🗣️ Innere Stimme</b><br><span style="color:var(--txt2)">Antreiber, Ängstlicher, Anspruchsvoller, Fürsorglicher — welcher innere Anteil meldet sich gerade? Hilft, innere Konflikte hinter dem Aufschieben zu erkennen.</span></p>
     </div>
     <button class="focus-btn focus-btn-primary" style="width:100%;margin-top:16px" onclick="closeHelp()">Los geht's</button>
   </div>
@@ -318,6 +320,10 @@ let obstacles = JSON.parse(localStorage.getItem('pc-obstacles')||'[]');
 // überspringbar (siehe openReflect/skipReflect), ausgelöst von markDone().
 let reflections = JSON.parse(localStorage.getItem('pc-reflections')||'[]');
 
+// innerTeamLog: [{date, taskId, taskName, voice}] — siehe INNER_TEAM_VOICES
+// im Actions-Abschnitt.
+let innerTeamLog = JSON.parse(localStorage.getItem('pc-innerteam')||'[]');
+
 // PROFILE.traitLevel (1-5, Default 3=neutral): grobe Selbsteinschätzung "Wie
 // stark neigst du generell zum Aufschieben?", einstellbar im 🗂️-Modal (siehe
 // Footer-Block in renderManage). Trait- vs. State-Prokrastination sind in der
@@ -350,6 +356,7 @@ function saveDiary(){ localStorage.setItem('pc-diary',JSON.stringify(diary)); }
 function saveObstacles(){ localStorage.setItem('pc-obstacles',JSON.stringify(obstacles)); }
 function saveProfile(){ localStorage.setItem('pc-profile',JSON.stringify(PROFILE)); }
 function saveReflections(){ localStorage.setItem('pc-reflections',JSON.stringify(reflections)); }
+function saveInnerTeamLog(){ localStorage.setItem('pc-innerteam',JSON.stringify(innerTeamLog)); }
 
 function nowTimeStr(){
   const d=new Date();
@@ -596,6 +603,35 @@ function obstacleSummary(){
   return Object.entries(counts).sort((a,b)=>b[1]-a[1]);
 }
 
+// Inneres Team (Schulz von Thun; im Buch als Coaching-Werkzeug gegen
+// Prokrastination genutzt, Kap. 11): innere Konflikte zwischen widerstreitenden
+// "Anteilen" werden oft als Aufschieben ausgelebt. Reine Bewusstmachungs- und
+// Selbstbeobachtungs-Hilfe, bewusst NICHT Teil von calcTaskScore() — es geht
+// hier um emotionale Selbstregulation, nicht um Priorisierung. Die vier
+// Anteile sind die im Coaching-Fall konkret genannten Beispiele, nicht ein
+// abschließendes oder validiertes Set — jede Person hat ihr eigenes inneres Team.
+const INNER_TEAM_VOICES = [
+  {name:'Antreiber', quote:'"Jetzt mach endlich! Du musst das hinkriegen!"'},
+  {name:'Ängstlicher', quote:'"Das schaffst du nicht!"'},
+  {name:'Anspruchsvoller', quote:'"Das muss richtig gut werden!"'},
+  {name:'Fürsorglicher', quote:'"Du brauchst auch mal Erholung!"'}
+];
+
+// Aufgerufen von pickInnerTeamVoice() (Klick auf einen der Stimme-Chips).
+function logInnerTeamVoice(taskId, taskName, voice){
+  innerTeamLog.unshift({date:todayStr(), taskId, taskName, voice});
+  innerTeamLog = innerTeamLog.slice(0,100);
+  saveInnerTeamLog();
+}
+
+// Analog zu obstacleSummary() — Grundlage für die Zusammenfassung im
+// Arbeitstagebuch-Modal.
+function innerTeamSummary(){
+  const counts={};
+  innerTeamLog.forEach(e=>counts[e.voice]=(counts[e.voice]||0)+1);
+  return Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+}
+
 // Vergleicht geplante mit tatsächlicher Startzeit eines Tagebuch-Eintrags; null,
 // wenn für die Aufgabe gar keine Startzeit geplant war (dann gibt es nichts zu vergleichen).
 function diaryDiff(e){
@@ -608,22 +644,32 @@ function diaryDiff(e){
 }
 
 // ── Timer ─────────────────────────────────────────────────────────────────────
-// Einfacher 5-Minuten-Countdown auf der Fokus-Karte ("einfach anfangen" statt
-// auf den "richtigen" Moment warten). Modul-globaler State statt pro Aufgabe,
-// da immer nur ein Timer gleichzeitig laufen kann.
+// Zwei Countdown-Modi auf der Fokus-Karte, beide mit demselben Modul-globalen
+// State (immer nur ein Timer gleichzeitig):
+//  - 'focus'   (startTimer): 5-Minuten-MINDESTZEIT — "einfach anfangen" statt
+//              auf den "richtigen" Moment warten.
+//  - 'restrict' (startRestrictTimer): wählbare HÖCHSTZEIT (Arbeitszeit-
+//              restriktion, Engberding et al., zitiert im Coaching-Fall-Kapitel
+//              des Buchs) — Perspektivwechsel von "Ich muss durcharbeiten, bis
+//              es fertig ist" zu "Ich darf nur bis zu diesem Zeitpunkt daran
+//              arbeiten", was besonders bei Perfektionismus/endlosen
+//              Überarbeitungsschleifen die gefühlte Aufgabengröße begrenzt.
+//              Höcker et al. (2022, S. 47) raten von dieser Intervention bei
+//              nahender Deadline ab — siehe taskDueSoon() weiter unten, das
+//              genau deshalb steuert, ob die Option überhaupt angeboten wird.
 
-let timerActive=false, timerInterval=null, timerRemaining=0, timerTaskId=null;
+let timerActive=false, timerInterval=null, timerRemaining=0, timerTaskId=null, timerMode='focus';
 
 function fmtTimer(sec){ return Math.floor(sec/60)+':'+String(sec%60).padStart(2,'0'); }
 
-// Startet den Timer für eine Aufgabe (loggt sofort einen Tagebuch-Eintrag, da
-// das Starten selbst schon als "angefangen" zählt). Am Ende: NICHT mit einem
-// blockierenden alert() unterbrechen (würde den Countdown-Moment stören) —
-// stattdessen wird der Text im Countdown-Element selbst kurz auf eine
-// Erfolgsmeldung geändert und nach 3s automatisch zurück auf den Start-Button.
+// Startet den Mindestzeit-Timer für eine Aufgabe (loggt sofort einen Tagebuch-
+// Eintrag, da das Starten selbst schon als "angefangen" zählt). Am Ende: NICHT
+// mit einem blockierenden alert() unterbrechen (würde den Countdown-Moment
+// stören) — stattdessen wird der Text im Countdown-Element selbst kurz auf
+// eine Erfolgsmeldung geändert und danach automatisch zurück auf den Start-Button.
 function startTimer(id){
   if(timerActive) return;
-  timerActive=true; timerRemaining=5*60; timerTaskId=id;
+  timerActive=true; timerMode='focus'; timerRemaining=5*60; timerTaskId=id;
   if(T_MAP[id]) logDiaryEntry(T_MAP[id]);
   renderApp();
   timerInterval=setInterval(()=>{
@@ -639,6 +685,38 @@ function startTimer(id){
     }
   },1000);
 }
+
+// Höchstzeit-Timer (Arbeitszeitrestriktion): Endmeldung betont bewusst, dass
+// AUFHÖREN der Erfolg ist, nicht Fertigwerden — das ist der ganze Sinn der
+// Intervention (siehe Kommentar oben).
+function startRestrictTimer(id, minutes){
+  if(timerActive) return;
+  timerActive=true; timerMode='restrict'; timerRemaining=minutes*60; timerTaskId=id;
+  restrictPickerOpen=false;
+  if(T_MAP[id]) logDiaryEntry(T_MAP[id]);
+  renderApp();
+  timerInterval=setInterval(()=>{
+    timerRemaining--;
+    const el=document.getElementById('timer-display');
+    if(timerRemaining<=0){
+      clearInterval(timerInterval); timerInterval=null;
+      if(timerTaskId) touchTask(timerTaskId);
+      if(el) el.textContent='⏰ Zeit um — bewusst aufhören zählt genauso als Erfolg.';
+      setTimeout(()=>{ timerActive=false; timerTaskId=null; timerMode='focus'; renderApp(); },4000);
+    } else if(el){
+      el.textContent='⏳ '+fmtTimer(timerRemaining);
+    }
+  },1000);
+}
+
+// Nur wenn keine Frist nah bevorsteht wird die Arbeitszeitrestriktion überhaupt
+// angeboten (siehe Kommentar oben, Höcker et al. 2022, S. 47).
+function taskDueSoon(t){
+  return !!(t.dueDate && daysUntilDate(t.dueDate)<=5);
+}
+
+let restrictPickerOpen=false;
+function toggleRestrictPicker(){ restrictPickerOpen=!restrictPickerOpen; renderFocusStack(); }
 
 // ── Erinnerungen (lokal, ohne Backend) ────────────────────────────────────────
 // Bewusst ohne Server: echte Push-Benachrichtigungen bei komplett geschlossener
@@ -770,6 +848,25 @@ function pickObstacle(id, reason){
   setTimeout(()=>{ obstacleConfirmedFor=null; renderFocusStack(); },2500);
 }
 
+// State für die "🗣️ Innere Stimme gerade laut?"-Chips, analog zum
+// Hindernis-Picker oben, nur mit etwas längerer Anzeigedauer (mehr Text: Zitat
+// + integrative Rückfrage statt nur "✓ Notiert").
+let innerTeamPickerOpen=false, innerTeamConfirmedVoice=null;
+function toggleInnerTeamPicker(){
+  innerTeamPickerOpen=!innerTeamPickerOpen;
+  innerTeamConfirmedVoice=null;
+  renderFocusStack();
+}
+function pickInnerTeamVoice(id, voiceName){
+  const t=T_MAP[id];
+  if(!t) return;
+  logInnerTeamVoice(id, t.name, voiceName);
+  innerTeamPickerOpen=false;
+  innerTeamConfirmedVoice=voiceName;
+  renderFocusStack();
+  setTimeout(()=>{ innerTeamConfirmedVoice=null; renderFocusStack(); },4500);
+}
+
 // Speichert die Freitext-Notiz in der Reframing-Box (onchange, kein eigener Button).
 function saveReframeNote(id){
   const el=document.getElementById('reframe-note-input');
@@ -858,9 +955,22 @@ function renderFocusStack(){
         : 'Du traust dir das gerade wenig zu. Was wäre ein kleinerer erster Schritt, den du dir zutraust?'} <span class="reframe-dismiss" onclick="dismissConfidence('${top.id}')">Überspringen</span></div>
     </div>` : '';
 
-  const timerHtml = (timerActive && timerTaskId===top.id)
-    ? `<div class="focus-timer" id="timer-display">⏱ ${fmtTimer(timerRemaining)}</div>`
+  const timerRunningHere = timerActive && timerTaskId===top.id;
+  const timerHtml = timerRunningHere
+    ? `<div class="focus-timer" id="timer-display">${timerMode==='restrict'?'⏳':'⏱'} ${fmtTimer(timerRemaining)}</div>`
     : `<button class="focus-btn focus-btn-primary" onclick="startTimer('${top.id}')">⏱ 5-Minuten-Fokus</button>`;
+
+  // Arbeitszeitrestriktion: nur anbieten, wenn kein Timer für diese Aufgabe
+  // läuft und keine Frist nah bevorsteht (siehe taskDueSoon()-Kommentar im
+  // Timer-Abschnitt). Bewusst kein Hinweistext, wenn ausgeblendet — passt zur
+  // sonstigen Zurückhaltung der App bei nicht relevanten Optionen.
+  const restrictHtml = (!timerRunningHere && !taskDueSoon(top)) ? (
+    restrictPickerOpen
+      ? `<div class="obstacle-chips">${[15,25,45].map(m=>
+          `<button class="obstacle-chip" onclick="startRestrictTimer('${top.id}',${m})">${m} Min</button>`
+        ).join('')}</div>`
+      : `<button class="obstacle-toggle" onclick="toggleRestrictPicker()">⏳ Arbeitszeit begrenzen (nur bis, nicht mindestens)</button>`
+  ) : '';
 
   const obstacleHtml = obstacleConfirmedFor
     ? `<div class="obstacle-confirm">✓ Notiert: ${esc(obstacleConfirmedFor)}</div>`
@@ -869,6 +979,16 @@ function renderFocusStack(){
           `<button class="obstacle-chip" onclick="pickObstacle('${top.id}','${r}')">${esc(r)}</button>`
         ).join('')}</div>`
       : `<button class="obstacle-toggle" onclick="toggleObstaclePicker()">🤔 Woran hat's gelegen?</button>`;
+
+  const innerTeamHtml = innerTeamConfirmedVoice
+    ? (()=>{ const v=INNER_TEAM_VOICES.find(v=>v.name===innerTeamConfirmedVoice);
+        return `<div class="obstacle-confirm">${esc(v.name)}: ${esc(v.quote)}<br>Welcher Teil von dir könnte gerade beim ersten kleinen Schritt helfen?</div>`;
+      })()
+    : innerTeamPickerOpen
+      ? `<div class="obstacle-chips">${INNER_TEAM_VOICES.map(v=>
+          `<button class="obstacle-chip" onclick="pickInnerTeamVoice('${top.id}','${v.name}')" title="${esc(v.quote)}">${esc(v.name)}</button>`
+        ).join('')}</div>`
+      : `<button class="obstacle-toggle" onclick="toggleInnerTeamPicker()">🗣️ Innere Stimme gerade laut?</button>`;
 
   el.innerHTML = `<div class="focus-card">
     <div class="stage-chip">${STAGE_LABEL[stage]}</div>
@@ -882,7 +1002,9 @@ function renderFocusStack(){
       <button class="focus-btn focus-btn-secondary" onclick="markDone('${top.id}')">✓ Erledigt</button>
       <button class="focus-btn focus-btn-secondary" onclick="openRefine('${top.id}')">Verfeinern</button>
     </div>
+    ${restrictHtml}
     ${obstacleHtml}
+    ${innerTeamHtml}
   </div>`;
 }
 
@@ -1122,6 +1244,11 @@ function renderDiary(){
     ? `<div class="hint-msg" style="font-style:normal;margin-bottom:10px">💡 Häufigste Gründe: ${summary.slice(0,3).map(([r,c])=>`${esc(r)} (${c}×)`).join(', ')}</div>`
     : '';
 
+  const teamSummary=innerTeamSummary();
+  const teamSummaryHtml = teamSummary.length>0
+    ? `<div class="hint-msg" style="font-style:normal;margin-bottom:10px">🗣️ Häufigste innere Stimme: ${teamSummary.slice(0,3).map(([v,c])=>`${esc(v)} (${c}×)`).join(', ')}</div>`
+    : '';
+
   // Rückblicke aus dem Reflexions-Modal (postaktionale Rubikon-Phase), eigener
   // Block oberhalb der Start-vs-Plan-Einträge, da inhaltlich um Ergebnis/Weg statt
   // um Zeitpunkte geht.
@@ -1140,10 +1267,10 @@ function renderDiary(){
     : '';
 
   if(diary.length===0){
-    el.innerHTML = summaryHtml + reflectHtml || `<div class="hint-msg">Noch keine Einträge — sobald du eine Aufgabe startest, wird die geplante gegen die tatsächliche Startzeit protokolliert.</div>`;
+    el.innerHTML = summaryHtml + teamSummaryHtml + reflectHtml || `<div class="hint-msg">Noch keine Einträge — sobald du eine Aufgabe startest, wird die geplante gegen die tatsächliche Startzeit protokolliert.</div>`;
     return;
   }
-  el.innerHTML = summaryHtml + reflectHtml + diary.map(e=>{
+  el.innerHTML = summaryHtml + teamSummaryHtml + reflectHtml + diary.map(e=>{
     const dateStr = new Date(e.date+'T12:00:00').toLocaleDateString('de-CH',{day:'numeric',month:'short'});
     const diff = diaryDiff(e);
     const timesText = e.plannedTime
