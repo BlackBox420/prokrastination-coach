@@ -224,6 +224,11 @@ input,button,textarea{font-family:inherit;font-size:inherit}
     <div class="modal-sub">Antippen zum Verfeinern oder Löschen</div>
     <div id="manage-content"></div>
     <div class="footer-block">
+      <div class="footer-block-title">Persönliche Einstellung</div>
+      <p>Wie stark neigst du <i>generell</i> zum Aufschieben? Beeinflusst, wie stark Widerstand, Zutrauen und Hindernisse die Priorisierung verschieben.</p>
+      <div id="trait-picker"></div>
+    </div>
+    <div class="footer-block">
       <div class="footer-block-title">Erinnerungen</div>
       <p id="notif-status-text">Erinnert dich lokal, wenn eine geplante Startzeit erreicht ist — funktioniert nur, während Fokus geöffnet oder kürzlich benutzt wurde, nicht bei komplett geschlossener App (v. a. auf dem iPhone eingeschränkt).</p>
       <button class="notif-btn" id="notif-btn" onclick="requestNotifPermission()">🔔 Erinnerungen aktivieren</button>
@@ -298,6 +303,14 @@ let streakState = JSON.parse(localStorage.getItem('pc-streak')||'{"count":0,"las
 let diary = JSON.parse(localStorage.getItem('pc-diary')||'[]');
 let obstacles = JSON.parse(localStorage.getItem('pc-obstacles')||'[]');
 
+// PROFILE.traitLevel (1-5, Default 3=neutral): grobe Selbsteinschätzung "Wie
+// stark neigst du generell zum Aufschieben?", einstellbar im 🗂️-Modal (siehe
+// Footer-Block in renderManage). Trait- vs. State-Prokrastination sind in der
+// Forschung unterschiedliche Konstrukte (habituelles Persönlichkeitsmerkmal
+// vs. situatives Verhalten, siehe Rustemeyer & Callies, 2013) — bei Default
+// bleibt jeder Score exakt wie ohne dieses Feld, siehe scaleBoost() unten.
+let PROFILE = JSON.parse(localStorage.getItem('pc-profile')||'{"traitLevel":3}');
+
 // T_MAP = TASKS, aber nach id indiziert (T_MAP[id] statt TASKS.find(...)).
 // Wichtig: T_MAP[id] ist dieselbe Objekt-Referenz wie das passende Element in
 // TASKS[] — Object.assign/Feld-Zuweisungen auf T_MAP[id] ändern daher direkt
@@ -320,6 +333,7 @@ function saveTasks(){ localStorage.setItem('pc-tasks',JSON.stringify(TASKS)); re
 function saveStreak(){ localStorage.setItem('pc-streak',JSON.stringify(streakState)); }
 function saveDiary(){ localStorage.setItem('pc-diary',JSON.stringify(diary)); }
 function saveObstacles(){ localStorage.setItem('pc-obstacles',JSON.stringify(obstacles)); }
+function saveProfile(){ localStorage.setItem('pc-profile',JSON.stringify(PROFILE)); }
 
 function nowTimeStr(){
   const d=new Date();
@@ -339,11 +353,17 @@ function daysSinceDate(ds){ return Math.max(0,(new Date(todayStr()+'T12:00:00')-
 
 // Ohne Fälligkeitsdatum ein milder, konstanter Dringlichkeits-Sockel (0.35),
 // damit Aufgaben ohne Datum nicht komplett von der Priorisierung ausgeschlossen
-// sind. Mit Datum steigt die Dringlichkeit in den letzten 14 Tagen vor Fälligkeit an.
+// sind. Mit Datum steigt die Dringlichkeit hyperbolisch statt linear an: bei
+// days=0 (heute fällig/überfällig) Wert 1, mit wachsendem Abstand nähert sich
+// die Kurve asymptotisch dem Sockel 0.15, aber deutlich langsamer als eine
+// lineare Rampe — die reale "Last-Minute"-Dringlichkeitsspitze in den letzten
+// Tagen vor der Frist ist stärker ausgeprägt, als eine lineare Zunahme abbildet
+// (Steel & König, 2006: Temporal Motivation Theory berücksichtigt die zeitliche
+// Nähe einer Konsequenz nicht linear, sondern mit stärkerer Gewichtung kurz davor).
 function taskUrgency(t){
   if(!t.dueDate) return 0.35;
   const days = daysUntilDate(t.dueDate);
-  return Math.max(0.15, Math.min(1, 1-days/14));
+  return 0.15 + 0.85/(1+days/3);
 }
 
 // Wie lange eine Aufgabe schon nicht mehr angefasst wurde (seit lastTouched,
@@ -383,11 +403,52 @@ function taskObstacleBoost(t){
   return 1+Math.min(taskObstacleCount(t),3)*0.1;
 }
 
+// clarityBoost: ein definierter Mikroschritt senkt die Einstiegshürde einer
+// Aufgabe messbar (Milgram et al.; Lonergan & Maher — Aufgaben-Klarheit senkt
+// Prokrastination unabhängig von Wichtigkeit/Widerstand). Eine Aufgabe mit
+// Mikroschritt ist "startbereit" und wird deshalb leicht höher priorisiert,
+// statt trotz geringerer Hürde weiter unten liegen zu bleiben — im Sinne von
+// Gollwitzers Implementation Intentions soll der Moment, in dem der nächste
+// Schritt schon feststeht, auch tatsächlich für den Start genutzt werden.
+function taskClarityBoost(t){
+  return (t.microstep||'').trim() ? 1.1 : 1;
+}
+
+// likelyStateOriented(): grober Verhaltens-Proxy für die Handlungskontroll-
+// theorie (Kuhl, 1994) — KEIN validiertes Messinstrument. Handlungs- vs.
+// Lageorientierung wird in der Forschung über urheberrechtlich geschützte
+// Fragebögen (z. B. ACS-90) erhoben, die hier bewusst nicht nachgebaut werden.
+// Stattdessen wird ein beobachtbares Muster genutzt: häufen sich offene
+// Aufgaben, die trotz wiederholt geloggter "Steckenbleiben"-Hindernisse
+// (taskObstacleBoost) nicht vorankommen, deutet das auf die für Lageorientierung
+// typische Schwierigkeit hin, aus einer Rückschlags-Fixierung heraus wieder in
+// Handlung zu kommen (Rustemeyer & Callies, 2013, S. 103). Bei Verdacht auf
+// diese Tendenz wird in calcTaskScore() der Druck durch Staleness abgeschwächt
+// statt weiter erhöht, und die Copy in renderFocusStack() fällt sanfter aus —
+// beides, weil Lageorientierte auf zusätzlichen Handlungsdruck eher gelähmt
+// als motiviert reagieren (siehe Datei-Kopfkommentar zu Kuhls Theorie).
+function likelyStateOriented(){
+  return TASKS.filter(t=>!t.done && taskObstacleCount(t)>=2).length>=2;
+}
+
+// scaleBoost(): verstärkt oder dämpft, wie stark ein "zentrierter" Boost-Faktor
+// (1 = neutral, wie resistanceBoost/confidenceBoost/obstacleBoost/clarityBoost)
+// von 1 abweicht — abhängig von PROFILE.traitLevel. Bei traitLevel=3 (Default,
+// auch bei allen Nutzer*innen ohne gesetztes Profil) ist traitScale()=1 und
+// diese Funktion damit ein No-Op: bestehende Scores ändern sich nicht, bis
+// jemand die Einstellung im 🗂️-Modal aktiv anpasst. Wer sich als generell
+// stark prokrastinierend einschätzt (traitLevel=5), bekommt dieselben
+// Situationsfaktoren stärker gewichtet — wer sich als wenig betroffen
+// einschätzt (traitLevel=1), entsprechend schwächer.
+function traitScale(){ return 1+((PROFILE.traitLevel||3)-3)*0.15; }
+function scaleBoost(rawBoost){ return 1+(rawBoost-1)*traitScale(); }
+
 function calcTaskScore(t){
   const urgency = taskUrgency(t);
-  const resistanceBoost = 0.6+t.resistance*0.18;
+  const resistanceBoost = scaleBoost(0.6+t.resistance*0.18);
   const staleness = taskStaleness(t);
-  return t.importance*urgency*resistanceBoost*taskConfidenceBoost(t)*taskObstacleBoost(t)*(0.5+staleness*0.5);
+  const stalenessFactor = likelyStateOriented() ? (0.65+staleness*0.35) : (0.5+staleness*0.5);
+  return t.importance*urgency*resistanceBoost*scaleBoost(taskConfidenceBoost(t))*scaleBoost(taskObstacleBoost(t))*scaleBoost(taskClarityBoost(t))*stalenessFactor;
 }
 
 // Score -> Ampelfarbe (rot=dringend ... grau=erledigt/unwichtig), genutzt für die Score-Zahl.
@@ -720,9 +781,14 @@ function renderFocusStack(){
   if(obstacleCount>=2) detailParts.push(`🔁 Schon ${obstacleCount}× als "unklar/überfordernd" notiert`);
   const detailHtml = detailParts.length ? `<div class="focus-detail">${detailParts.join(' · ')}</div>` : '';
 
+  // Bei likelyStateOriented() sanftere Frage (Selbstmitgefühl statt Konfrontation
+  // mit der Befürchtung) — siehe Kommentar bei likelyStateOriented() im Score-Abschnitt.
+  const gentle = likelyStateOriented();
   const reframeHtml = (top.resistance>=4 && !dismissedReframe.has(top.id)) ? `
     <div class="reframe-box">
-      <div class="reframe-q">Was befürchtest du, wenn du jetzt anfängst? Ist das realistisch? <span class="reframe-dismiss" onclick="dismissReframe('${top.id}')">Überspringen</span></div>
+      <div class="reframe-q">${gentle
+        ? 'Kein Druck: Was wäre gerade das Kleinstmögliche, das du dir zutraust — auch nur für 2 Minuten?'
+        : 'Was befürchtest du, wenn du jetzt anfängst? Ist das realistisch?'} <span class="reframe-dismiss" onclick="dismissReframe('${top.id}')">Überspringen</span></div>
       <textarea id="reframe-note-input" placeholder="Kurze Notiz (optional)" onchange="saveReframeNote('${top.id}')">${esc(top.reframeNote||'')}</textarea>
     </div>` : '';
 
@@ -730,7 +796,9 @@ function renderFocusStack(){
   // nicht Angst/Vermeidung — daher andere Frage und eigener Dismiss-State.
   const confidenceHtml = ((top.confidence||3)<=2 && !dismissedConfidence.has(top.id)) ? `
     <div class="reframe-box">
-      <div class="reframe-q">Du traust dir das gerade wenig zu. Was wäre ein kleinerer erster Schritt, den du dir zutraust? <span class="reframe-dismiss" onclick="dismissConfidence('${top.id}')">Überspringen</span></div>
+      <div class="reframe-q">${gentle
+        ? 'Das ist völlig okay so. Was wäre ein kleinerer erster Schritt, den du dir gerade zutraust?'
+        : 'Du traust dir das gerade wenig zu. Was wäre ein kleinerer erster Schritt, den du dir zutraust?'} <span class="reframe-dismiss" onclick="dismissConfidence('${top.id}')">Überspringen</span></div>
     </div>` : '';
 
   const timerHtml = (timerActive && timerTaskId===top.id)
@@ -952,6 +1020,18 @@ function renderManage(){
     else if(notifPermission==='unsupported'){ btn.textContent='Von diesem Browser nicht unterstützt'; btn.disabled=true; }
     else { btn.textContent='🔔 Erinnerungen aktivieren'; btn.disabled=false; }
   }
+
+  const traitEl=document.getElementById('trait-picker');
+  if(traitEl) traitEl.innerHTML = dotPicker('trait-dots', PROFILE.traitLevel||3).replace(/onclick="pickDot\(this,(\d)\)"/g,'onclick="setTraitLevel($1)"');
+}
+
+// Speichert die persönliche Aufschiebe-Neigung (siehe PROFILE-Kommentar im
+// Data-Abschnitt und scaleBoost() im Score-Abschnitt) und rendert neu, weil
+// sich dadurch alle Scores ändern können.
+function setTraitLevel(v){
+  PROFILE.traitLevel=v;
+  saveProfile();
+  renderApp();
 }
 
 function toggleTips(){
