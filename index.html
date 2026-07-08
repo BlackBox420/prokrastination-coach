@@ -282,6 +282,15 @@ input,button,textarea{font-family:inherit;font-size:inherit}
   </div>
 </div>
 
+<div class="modal-bg" id="reflect-bg" onclick="reflectBgClick(event)">
+  <div class="modal">
+    <button class="modal-close" onclick="skipReflect()">✕</button>
+    <div class="modal-title">Geschafft 🎉</div>
+    <div class="modal-sub">Kurzer, freiwilliger Rückblick — hilft dir mehr als der App</div>
+    <div id="reflect-content"></div>
+  </div>
+</div>
+
 <script>
 // ── Data ─────────────────────────────────────────────────────────────────────
 // TASKS: [{id, name, dueDate, importance (1-5), resistance (1-5), confidence (1-5),
@@ -302,6 +311,12 @@ let TASKS = JSON.parse(localStorage.getItem('pc-tasks')||'[]');
 let streakState = JSON.parse(localStorage.getItem('pc-streak')||'{"count":0,"lastActiveDate":null}');
 let diary = JSON.parse(localStorage.getItem('pc-diary')||'[]');
 let obstacles = JSON.parse(localStorage.getItem('pc-obstacles')||'[]');
+
+// reflections: [{date, taskId, taskName, outcome, note}] — die postaktionale
+// Bewertungsphase des Rubikon-Modells (4. Phase "Bewerten"), die im Datei-
+// Kopfkommentar zitiert, bisher aber nirgends implementiert war. Optional und
+// überspringbar (siehe openReflect/skipReflect), ausgelöst von markDone().
+let reflections = JSON.parse(localStorage.getItem('pc-reflections')||'[]');
 
 // PROFILE.traitLevel (1-5, Default 3=neutral): grobe Selbsteinschätzung "Wie
 // stark neigst du generell zum Aufschieben?", einstellbar im 🗂️-Modal (siehe
@@ -334,6 +349,7 @@ function saveStreak(){ localStorage.setItem('pc-streak',JSON.stringify(streakSta
 function saveDiary(){ localStorage.setItem('pc-diary',JSON.stringify(diary)); }
 function saveObstacles(){ localStorage.setItem('pc-obstacles',JSON.stringify(obstacles)); }
 function saveProfile(){ localStorage.setItem('pc-profile',JSON.stringify(PROFILE)); }
+function saveReflections(){ localStorage.setItem('pc-reflections',JSON.stringify(reflections)); }
 
 function nowTimeStr(){
   const d=new Date();
@@ -360,10 +376,20 @@ function daysSinceDate(ds){ return Math.max(0,(new Date(todayStr()+'T12:00:00')-
 // Tagen vor der Frist ist stärker ausgeprägt, als eine lineare Zunahme abbildet
 // (Steel & König, 2006: Temporal Motivation Theory berücksichtigt die zeitliche
 // Nähe einer Konsequenz nicht linear, sondern mit stärkerer Gewichtung kurz davor).
+//
+// "Slippery Deadlines": ein selbstgesetzter, jederzeit verschiebbarer Termin
+// (t.selfSetDeadline) erzeugt erwiesenermaßen deutlich schwächere Dringlichkeit
+// als eine externe, fixe Frist (Steel, Taras, Ponak & Kammeyer-Mueller, 2022;
+// im Coaching-Fall-Kapitel des Buchs explizit als Muster beschrieben: eigene,
+// terminlose Ziele bleiben besonders leicht liegen). Statt der vollen Kurve wird
+// die Dringlichkeit deshalb zur Hälfte auf den daten-losen Sockel (0.35) zurück-
+// gezogen — je näher am Sockel, desto weniger Verlass auf das reine Datum.
+// Default false: Verhalten für Altdaten ohne dieses Feld bleibt unverändert.
 function taskUrgency(t){
   if(!t.dueDate) return 0.35;
   const days = daysUntilDate(t.dueDate);
-  return 0.15 + 0.85/(1+days/3);
+  const raw = 0.15 + 0.85/(1+days/3);
+  return t.selfSetDeadline ? (raw+0.35)/2 : raw;
 }
 
 // Wie lange eine Aufgabe schon nicht mehr angefasst wurde (seit lastTouched,
@@ -476,15 +502,37 @@ const STAGE_LABEL = {idee:'💭 Idee',geplant:'🗓️ Geplant',dabei:'🔥 Dabe
 // einer Flamme.
 
 // Wird von touchTask() und markDone() aufgerufen. Zählt hoch, wenn gestern schon
-// aktiv war (Serie geht weiter), setzt auf 1 zurück, wenn ein Tag ausgelassen
-// wurde (kein Schuld-Framing in der UI dafür — einfach ein Neustart bei 1).
-// lastActiveDate===today verhindert Mehrfachzählung bei mehreren Aktionen am selben Tag.
+// aktiv war (Serie geht weiter). Bei genau einem ausgelassenen Tag greift ein
+// "Gnadentag" (siehe unten), statt hart auf 1 zurückzusetzen — sonst Neustart
+// bei 1 (kein Schuld-Framing in der UI dafür). lastActiveDate===today verhindert
+// Mehrfachzählung bei mehreren Aktionen am selben Tag.
+//
+// Gnadentag-Begründung: der im Buch geschilderte Coaching-Fall (Kap. 11) betont
+// explizit, dass Rückschläge in der Etablierungsphase einer Verhaltensänderung
+// normal sind (zitierte Gewöhnungsdauer: 21–66 Tage) und harte Bestrafung eines
+// einzelnen Ausrutschers eher schadet als hilft. Ein Gnadentag greift nur bei
+// bereits etablierter Serie (>=3 Tage) und höchstens alle 14 Tage einmal, um
+// Missbrauch als dauerhaftes "jeden zweiten Tag reicht" zu vermeiden.
 function bumpStreak(){
   const today = todayStr();
   if(streakState.lastActiveDate===today) return;
-  const y = new Date(); y.setDate(y.getDate()-1);
-  const yStr = y.toISOString().split('T')[0];
-  streakState.count = streakState.lastActiveDate===yStr ? streakState.count+1 : 1;
+  const y1 = new Date(); y1.setDate(y1.getDate()-1);
+  const y1Str = y1.toISOString().split('T')[0];
+  const y2 = new Date(); y2.setDate(y2.getDate()-2);
+  const y2Str = y2.toISOString().split('T')[0];
+
+  if(streakState.lastActiveDate===y1Str){
+    streakState.count += 1;
+  } else if(
+    streakState.lastActiveDate===y2Str &&
+    streakState.count>=3 &&
+    (!streakState.lastGraceDate || daysSinceDate(streakState.lastGraceDate)>=14)
+  ){
+    streakState.count += 1;
+    streakState.lastGraceDate = today;
+  } else {
+    streakState.count = 1;
+  }
   streakState.lastActiveDate = today;
   saveStreak();
 }
@@ -668,7 +716,11 @@ function markStarted(id){
   renderApp();
 }
 
-// "✓ Erledigt"-Button, toggelbar (nochmal klicken macht es rückgängig).
+// "✓ Erledigt"-Button, toggelbar (nochmal klicken macht es rückgängig). Beim
+// Erledigen (nicht beim Rückgängigmachen) wird zusätzlich die postaktionale
+// Reflexion angeboten (siehe openReflect() weiter unten) — optional und
+// überspringbar, schließt aber die 4. Rubikon-Phase ("Bewerten") als einzige,
+// bisher komplett ungenutzte Phase des im Datei-Kopf zitierten Modells.
 function markDone(id){
   const t=T_MAP[id];
   if(!t) return;
@@ -676,7 +728,12 @@ function markDone(id){
   t.lastTouched=todayStr();
   if(t.done) logDiaryEntry(t);
   saveTasks();
-  if(t.done) bumpStreak();
+  if(t.done){
+    bumpStreak();
+    renderApp();
+    openReflect(id);
+    return;
+  }
   renderApp();
 }
 
@@ -896,6 +953,9 @@ function renderRefine(id){
       <div class="field">
         <label>Fälligkeit (optional)</label>
         <input type="date" id="rf-due" value="${t.dueDate||''}">
+        <label style="text-transform:none;font-weight:400;font-size:11px;color:var(--txt2);display:flex;align-items:center;gap:5px;margin-top:2px">
+          <input type="checkbox" id="rf-selfset" ${t.selfSetDeadline?'checked':''} style="width:auto"> selbst gesetzt, nicht extern fix
+        </label>
       </div>
       <div class="field">
         <label>Geplante Startzeit (optional)</label>
@@ -945,6 +1005,7 @@ function saveRefine(id){
   if(!name){ alert('Bitte einen Namen eingeben.'); return; }
   t.name=name;
   t.dueDate=document.getElementById('rf-due').value||'';
+  t.selfSetDeadline=document.getElementById('rf-selfset').checked;
   t.plannedTime=document.getElementById('rf-plan').value||'';
   t.importance=parseInt(document.getElementById('rf-imp').dataset.value)||3;
   t.resistance=parseInt(document.getElementById('rf-res').dataset.value)||3;
@@ -1061,11 +1122,28 @@ function renderDiary(){
     ? `<div class="hint-msg" style="font-style:normal;margin-bottom:10px">💡 Häufigste Gründe: ${summary.slice(0,3).map(([r,c])=>`${esc(r)} (${c}×)`).join(', ')}</div>`
     : '';
 
+  // Rückblicke aus dem Reflexions-Modal (postaktionale Rubikon-Phase), eigener
+  // Block oberhalb der Start-vs-Plan-Einträge, da inhaltlich um Ergebnis/Weg statt
+  // um Zeitpunkte geht.
+  const reflectHtml = reflections.length>0
+    ? `<div class="sec-hdr" style="margin-top:2px">Rückblick abgeschlossener Aufgaben</div>` + reflections.slice(0,10).map(r=>{
+        const dateStr = new Date(r.date+'T12:00:00').toLocaleDateString('de-CH',{day:'numeric',month:'short'});
+        return `<div class="diary-entry">
+          <div class="diary-entry-top">
+            <span class="diary-entry-name">${esc(r.taskName)}</span>
+            <span class="diary-entry-date">${dateStr}</span>
+          </div>
+          ${r.outcome?`<div class="diary-entry-times">${esc(r.outcome)}</div>`:''}
+          ${r.note?`<div class="diary-entry-times">${esc(r.note)}</div>`:''}
+        </div>`;
+      }).join('')
+    : '';
+
   if(diary.length===0){
-    el.innerHTML = summaryHtml || `<div class="hint-msg">Noch keine Einträge — sobald du eine Aufgabe startest, wird die geplante gegen die tatsächliche Startzeit protokolliert.</div>`;
+    el.innerHTML = summaryHtml + reflectHtml || `<div class="hint-msg">Noch keine Einträge — sobald du eine Aufgabe startest, wird die geplante gegen die tatsächliche Startzeit protokolliert.</div>`;
     return;
   }
-  el.innerHTML = summaryHtml + diary.map(e=>{
+  el.innerHTML = summaryHtml + reflectHtml + diary.map(e=>{
     const dateStr = new Date(e.date+'T12:00:00').toLocaleDateString('de-CH',{day:'numeric',month:'short'});
     const diff = diaryDiff(e);
     const timesText = e.plannedTime
@@ -1095,6 +1173,65 @@ function openDiary(){
 }
 function closeDiary(){ document.getElementById('diary-bg').classList.remove('open'); document.body.style.overflow=''; }
 function diaryBgClick(e){ if(e.target===document.getElementById('diary-bg')) closeDiary(); }
+
+// ── Reflexions-Modal (postaktionale Rubikon-Phase "Bewerten") ────────────────
+// Öffnet sich automatisch nach markDone() (siehe Actions-Abschnitt). Ganz
+// bewusst nur zwei sehr leichte Eingaben (Ergebnis-Chip + optionale Notiz),
+// beides überspringbar — die App bleibt bei ihrem Grundprinzip "keine
+// Pflichtformulare", auch für diese neue Phase.
+const REFLECT_OUTCOMES = ['Lief gut','Holprig, aber geschafft','Gerade noch rechtzeitig','Nicht wie gewünscht'];
+let reflectTaskId = null;
+let reflectOutcome = null;
+
+function renderReflect(){
+  const t = T_MAP[reflectTaskId];
+  const el = document.getElementById('reflect-content');
+  if(!t || !el) return;
+  el.innerHTML = `
+    <div class="focus-name" style="font-size:16px;margin-bottom:10px">${esc(t.name)}</div>
+    <div class="obstacle-chips" style="margin-top:0;margin-bottom:12px">${REFLECT_OUTCOMES.map(o=>
+      `<button type="button" class="obstacle-chip" style="${o===reflectOutcome?'background:#007aff;color:#fff':''}" onclick="pickReflectOutcome('${o}')">${esc(o)}</button>`
+    ).join('')}</div>
+    <div class="field">
+      <label>Was hat geholfen, oder was würdest du nächstes Mal anders machen? (optional)</label>
+      <textarea id="reflect-note-input" placeholder="Kurze Notiz"></textarea>
+    </div>
+    <div class="form-actions">
+      <button class="btn-cancel" onclick="skipReflect()">Überspringen</button>
+      <button class="btn-save" onclick="saveReflect()">Speichern</button>
+    </div>
+  `;
+}
+
+function pickReflectOutcome(o){ reflectOutcome = (reflectOutcome===o ? null : o); renderReflect(); }
+
+function saveReflect(){
+  const t = T_MAP[reflectTaskId];
+  const noteEl = document.getElementById('reflect-note-input');
+  const note = noteEl ? (noteEl.value||'').trim() : '';
+  if(t && (reflectOutcome || note)){
+    reflections.unshift({date:todayStr(), taskId:t.id, taskName:t.name, outcome:reflectOutcome, note});
+    reflections = reflections.slice(0,100);
+    saveReflections();
+  }
+  closeReflect();
+}
+
+function skipReflect(){ closeReflect(); }
+
+function openReflect(id){
+  reflectTaskId = id;
+  reflectOutcome = null;
+  renderReflect();
+  document.getElementById('reflect-bg').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeReflect(){
+  document.getElementById('reflect-bg').classList.remove('open');
+  document.body.style.overflow='';
+  reflectTaskId = null;
+}
+function reflectBgClick(e){ if(e.target===document.getElementById('reflect-bg')) closeReflect(); }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 // Einstiegspunkt: einmal beim Laden der Seite ausgeführt (Aufruf init() steht
