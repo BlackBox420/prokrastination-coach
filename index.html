@@ -995,40 +995,41 @@ function renderFocusStack(){
   // läuft und keine Frist nah bevorsteht (siehe taskDueSoon()-Kommentar im
   // Timer-Abschnitt). Bewusst kein Hinweistext, wenn ausgeblendet — passt zur
   // sonstigen Zurückhaltung der App bei nicht relevanten Optionen.
-  const restrictHtml = (!timerRunningHere && !taskDueSoon(top)) ? (
-    restrictPickerOpen
-      ? `<div class="obstacle-chips">${[15,25,45].map(m=>
+  //
+  // Alle vier Toggles auf der Karte (restrict/obstacle/innerTeam/tools) folgen
+  // demselben Muster: der Toggle-Button bleibt IMMER sichtbar (mit ▾/▴ als
+  // Auf-/Zugeklappt-Indikator), Inhalte klappen darunter auf statt den Button
+  // beim Öffnen zu ersetzen — sonst gibt es keinen Weg, wieder zuzuklappen.
+  const restrictHtml = (!timerRunningHere && !taskDueSoon(top))
+    ? `<button class="obstacle-toggle" onclick="toggleRestrictPicker()">⏳ Arbeitszeit begrenzen ${restrictPickerOpen?'▴':'▾'}</button>` +
+      (restrictPickerOpen ? `<div class="obstacle-chips">${[15,25,45].map(m=>
           `<button class="obstacle-chip" onclick="startRestrictTimer('${top.id}',${m})">${m} Min</button>`
-        ).join('')}</div>`
-      : `<button class="obstacle-toggle" onclick="toggleRestrictPicker()">⏳ Arbeitszeit begrenzen</button>`
-  ) : '';
+        ).join('')}</div>` : '')
+    : '';
 
   const obstacleHtml = obstacleConfirmedFor
     ? `<div class="obstacle-confirm">✓ Notiert: ${esc(obstacleConfirmedFor)}</div>`
-    : obstaclePickerOpen
-      ? `<div class="obstacle-chips">${OBSTACLE_REASONS.map(r=>
+    : `<button class="obstacle-toggle" onclick="toggleObstaclePicker()">🤔 Woran hat's gelegen? ${obstaclePickerOpen?'▴':'▾'}</button>` +
+      (obstaclePickerOpen ? `<div class="obstacle-chips">${OBSTACLE_REASONS.map(r=>
           `<button class="obstacle-chip" onclick="pickObstacle('${top.id}','${r}')">${esc(r)}</button>`
-        ).join('')}</div>`
-      : `<button class="obstacle-toggle" onclick="toggleObstaclePicker()">🤔 Woran hat's gelegen?</button>`;
+        ).join('')}</div>` : '');
 
   const innerTeamHtml = innerTeamConfirmedVoice
     ? (()=>{ const v=INNER_TEAM_VOICES.find(v=>v.name===innerTeamConfirmedVoice);
         return `<div class="obstacle-confirm">${esc(v.name)}: ${esc(v.quote)}<br>Welcher Teil von dir könnte gerade beim ersten kleinen Schritt helfen?</div>`;
       })()
-    : innerTeamPickerOpen
-      ? `<div class="obstacle-chips">${INNER_TEAM_VOICES.map(v=>
+    : `<button class="obstacle-toggle" onclick="toggleInnerTeamPicker()">🗣️ Innere Stimme gerade laut? ${innerTeamPickerOpen?'▴':'▾'}</button>` +
+      (innerTeamPickerOpen ? `<div class="obstacle-chips">${INNER_TEAM_VOICES.map(v=>
           `<button class="obstacle-chip" onclick="pickInnerTeamVoice('${top.id}','${v.name}')" title="${esc(v.quote)}">${esc(v.name)}</button>`
-        ).join('')}</div>`
-      : `<button class="obstacle-toggle" onclick="toggleInnerTeamPicker()">🗣️ Innere Stimme gerade laut?</button>`;
+        ).join('')}</div>` : '');
 
   // "Woran hat's gelegen?" bleibt direkt sichtbar (etabliert, meistgenutzt).
   // Arbeitszeitrestriktion + inneres Team sind neuere, seltener gebrauchte
   // Werkzeuge — hinter einem gemeinsamen "🧰 Mehr"-Toggle versteckt, damit die
   // Karte im Normalfall nicht mit drei fast identisch aussehenden Text-Links
   // vollläuft (siehe auch supportBoxHtml-Zusammenführung oben).
-  const moreToolsHtml = toolsOpen
-    ? `${restrictHtml}${innerTeamHtml}`
-    : (restrictHtml || innerTeamHtml ? `<button class="obstacle-toggle" onclick="toggleTools()">🧰 Mehr</button>` : '');
+  const moreToolsToggleHtml = `<button class="obstacle-toggle" onclick="toggleTools()">🧰 Mehr ${toolsOpen?'▴':'▾'}</button>`;
+  const moreToolsHtml = toolsOpen ? `${restrictHtml}${innerTeamHtml}` : '';
 
   el.innerHTML = `<div class="focus-card">
     <div class="stage-chip">${STAGE_LABEL[stage]}</div>
@@ -1042,6 +1043,7 @@ function renderFocusStack(){
       <button class="focus-btn focus-btn-secondary" onclick="openRefine('${top.id}')">Verfeinern</button>
     </div>
     ${obstacleHtml}
+    ${moreToolsToggleHtml}
     ${moreToolsHtml}
   </div>`;
 }
