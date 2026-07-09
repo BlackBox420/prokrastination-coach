@@ -234,6 +234,15 @@ input,button,textarea{font-family:inherit;font-size:inherit}
       <button class="notif-btn" id="notif-btn" onclick="requestNotifPermission()">🔔 Erinnerungen aktivieren</button>
     </div>
     <div class="footer-block">
+      <div class="footer-block-title">Daten sichern</div>
+      <p>Alle Daten liegen nur in diesem Browser (localStorage) — bei Cache-Löschung, Browser- oder Gerätewechsel sind sie sonst weg. Backup als Datei speichern oder zurückspielen.</p>
+      <div style="display:flex;gap:8px">
+        <button class="notif-btn" style="flex:1" onclick="exportBackup()">⬇️ Exportieren</button>
+        <button class="notif-btn" style="flex:1;background:var(--bg3);color:var(--txt)" onclick="document.getElementById('backup-file-input').click()">⬆️ Importieren</button>
+      </div>
+      <input type="file" id="backup-file-input" accept="application/json" style="display:none" onchange="handleBackupFile(event)">
+    </div>
+    <div class="footer-block">
       <a href="#" onclick="toggleTips();return false" class="tips-link">💡 Tipps für den Arbeitsplatz</a>
       <div id="tips-block" style="display:none;font-size:12px;color:var(--txt2);line-height:1.7;margin-top:8px">
         • Arbeitsplatz vorher aufräumen und nur das Nötige bereitlegen<br>
@@ -269,7 +278,8 @@ input,button,textarea{font-family:inherit;font-size:inherit}
       <p style="margin-bottom:12px"><b>7. ☀️ Streak-Sonne</b><br><span style="color:var(--txt2)">Strahlt heller, je länger deine Serie an aktiven Tagen läuft.</span></p>
       <p style="margin-bottom:12px"><b>8. 🤔 Woran hat's gelegen?</b><br><span style="color:var(--txt2)">Wenn etwas nicht klappt: kurz den Grund antippen — hilft dir, eigene Muster zu erkennen.</span></p>
       <p style="margin-bottom:12px"><b>9. ⏳ Arbeitszeit begrenzen</b><br><span style="color:var(--txt2)">Statt "ich muss durcharbeiten, bis es fertig ist": eine feste Zeit, danach darfst du bewusst aufhören — auch wenn's nicht fertig ist. Nur verfügbar, wenn keine Frist nah bevorsteht.</span></p>
-      <p style="margin-bottom:4px"><b>10. 🗣️ Innere Stimme</b><br><span style="color:var(--txt2)">Antreiber, Ängstlicher, Anspruchsvoller, Fürsorglicher — welcher innere Anteil meldet sich gerade? Hilft, innere Konflikte hinter dem Aufschieben zu erkennen.</span></p>
+      <p style="margin-bottom:12px"><b>10. 🗣️ Innere Stimme</b><br><span style="color:var(--txt2)">Antreiber, Ängstlicher, Anspruchsvoller, Fürsorglicher — welcher innere Anteil meldet sich gerade? Hilft, innere Konflikte hinter dem Aufschieben zu erkennen.</span></p>
+      <p style="margin-bottom:4px"><b>11. 💾 Backup</b><br><span style="color:var(--txt2)">In "Alle Aufgaben" ganz unten: alle Daten als Datei sichern oder zurückspielen — wichtig, da alles nur lokal in diesem Browser liegt.</span></p>
     </div>
     <button class="focus-btn focus-btn-primary" style="width:100%;margin-top:16px" onclick="closeHelp()">Los geht's</button>
   </div>
@@ -1248,6 +1258,75 @@ function setTraitLevel(v){
 function toggleTips(){
   const el=document.getElementById('tips-block');
   if(el) el.style.display = el.style.display==='none' ? '' : 'none';
+}
+
+// ── Backup (Export/Import) ────────────────────────────────────────────────────
+// Einziger Weg, Daten zwischen Geräten/Browsern zu übertragen oder vor
+// Cache-Löschung zu schützen, da bewusst kein Cloud-Sync existiert (siehe
+// README/Datei-Kopfkommentar). Eine einzelne JSON-Datei mit allen sieben
+// localStorage-Keys dieser App.
+
+// Baut ein Blob aus dem aktuellen State und stößt einen Browser-Download an
+// (kein Backend nötig, funktioniert komplett clientseitig).
+function exportBackup(){
+  const data = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    tasks: TASKS,
+    streak: streakState,
+    diary: diary,
+    obstacles: obstacles,
+    profile: PROFILE,
+    reflections: reflections,
+    innerTeam: innerTeamLog
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `fokus-backup-${todayStr()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// Callback des versteckten <input type=file> — liest die gewählte Datei als
+// Text und delegiert das eigentliche Einspielen an importBackup().
+function handleBackupFile(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    let data;
+    try{ data = JSON.parse(reader.result); }
+    catch(e){ alert('Diese Datei sieht nicht wie ein gültiges Fokus-Backup aus.'); event.target.value=''; return; }
+    importBackup(data);
+    event.target.value=''; // dieselbe Datei muss später erneut wählbar sein
+  };
+  reader.readAsText(file);
+}
+
+// Ersetzt ALLE aktuellen Daten durch die aus dem Backup (mit Rückfrage, da
+// destruktiv). Fehlende Felder fallen auf denselben leeren Ausgangszustand
+// zurück wie ein frischer Erststart, damit ein Teil-Backup (z. B. aus einer
+// älteren App-Version ohne "innerTeam") nicht crasht.
+function importBackup(data){
+  if(!data || !Array.isArray(data.tasks)){
+    alert('Diese Datei sieht nicht wie ein gültiges Fokus-Backup aus.');
+    return;
+  }
+  if(!confirm('Backup importieren? Das ersetzt alle aktuell in diesem Browser gespeicherten Aufgaben und Daten.')) return;
+  TASKS = data.tasks;
+  streakState = data.streak || {count:0, lastActiveDate:null};
+  diary = data.diary || [];
+  obstacles = data.obstacles || [];
+  PROFILE = data.profile || {traitLevel:3};
+  reflections = data.reflections || [];
+  innerTeamLog = data.innerTeam || [];
+  saveTasks(); saveStreak(); saveDiary(); saveObstacles(); saveProfile(); saveReflections(); saveInnerTeamLog();
+  renderApp();
+  alert('Backup importiert.');
 }
 
 function openManage(){
