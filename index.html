@@ -718,6 +718,11 @@ function taskDueSoon(t){
 let restrictPickerOpen=false;
 function toggleRestrictPicker(){ restrictPickerOpen=!restrictPickerOpen; renderFocusStack(); }
 
+// Sammel-Toggle für die selten gebrauchten Werkzeuge auf der Fokus-Karte
+// (Arbeitszeitrestriktion, inneres Team) — siehe moreToolsHtml in renderFocusStack().
+let toolsOpen=false;
+function toggleTools(){ toolsOpen=!toolsOpen; renderFocusStack(); }
+
 // ── Erinnerungen (lokal, ohne Backend) ────────────────────────────────────────
 // Bewusst ohne Server: echte Push-Benachrichtigungen bei komplett geschlossener
 // App würden einen Backend-Baustein brauchen (siehe README). Stattdessen prüft
@@ -938,22 +943,38 @@ function renderFocusStack(){
   // Bei likelyStateOriented() sanftere Frage (Selbstmitgefühl statt Konfrontation
   // mit der Befürchtung) — siehe Kommentar bei likelyStateOriented() im Score-Abschnitt.
   const gentle = likelyStateOriented();
-  const reframeHtml = (top.resistance>=4 && !dismissedReframe.has(top.id)) ? `
-    <div class="reframe-box">
-      <div class="reframe-q">${gentle
-        ? 'Kein Druck: Was wäre gerade das Kleinstmögliche, das du dir zutraust — auch nur für 2 Minuten?'
-        : 'Was befürchtest du, wenn du jetzt anfängst? Ist das realistisch?'} <span class="reframe-dismiss" onclick="dismissReframe('${top.id}')">Überspringen</span></div>
-      <textarea id="reframe-note-input" placeholder="Kurze Notiz (optional)" onchange="saveReframeNote('${top.id}')">${esc(top.reframeNote||'')}</textarea>
-    </div>` : '';
+  const showReframe = top.resistance>=4 && !dismissedReframe.has(top.id);
+  const showConfidence = (top.confidence||3)<=2 && !dismissedConfidence.has(top.id);
+  const reframeQ = gentle
+    ? 'Kein Druck: Was wäre gerade das Kleinstmögliche, das du dir zutraust — auch nur für 2 Minuten?'
+    : 'Was befürchtest du, wenn du jetzt anfängst? Ist das realistisch?';
+  const confidenceQ = gentle
+    ? 'Das ist völlig okay so. Was wäre ein kleinerer erster Schritt, den du dir gerade zutraust?'
+    : 'Du traust dir das gerade wenig zu. Was wäre ein kleinerer erster Schritt, den du dir zutraust?';
 
-  // Eigenständig von reframeHtml: adressiert mangelndes Zutrauen (Selbstwirksamkeit),
-  // nicht Angst/Vermeidung — daher andere Frage und eigener Dismiss-State.
-  const confidenceHtml = ((top.confidence||3)<=2 && !dismissedConfidence.has(top.id)) ? `
-    <div class="reframe-box">
-      <div class="reframe-q">${gentle
-        ? 'Das ist völlig okay so. Was wäre ein kleinerer erster Schritt, den du dir gerade zutraust?'
-        : 'Du traust dir das gerade wenig zu. Was wäre ein kleinerer erster Schritt, den du dir zutraust?'} <span class="reframe-dismiss" onclick="dismissConfidence('${top.id}')">Überspringen</span></div>
-    </div>` : '';
+  // Widerstand und Zutrauen sind unterschiedliche Konstrukte (siehe Score-
+  // Kommentare), aber inhaltlich überlappen ihre Reframing-Fragen stark — beide
+  // laufen praktisch auf "kleinstmöglicher nächster Schritt" hinaus. Statt zwei
+  // fast identisch aussehender Boxen zu stapeln (wirkte auf der Fokus-Karte
+  // überladen), bei Doppel-Treffer EINE Box mit beiden Fragen und einem
+  // gemeinsamen "Überspringen".
+  let supportBoxHtml = '';
+  if(showReframe && showConfidence){
+    supportBoxHtml = `<div class="reframe-box">
+      <div class="reframe-q">${reframeQ}</div>
+      <div class="reframe-q" style="margin-top:8px">${confidenceQ} <span class="reframe-dismiss" onclick="dismissReframe('${top.id}');dismissConfidence('${top.id}')">Überspringen</span></div>
+      <textarea id="reframe-note-input" placeholder="Kurze Notiz (optional)" onchange="saveReframeNote('${top.id}')">${esc(top.reframeNote||'')}</textarea>
+    </div>`;
+  } else if(showReframe){
+    supportBoxHtml = `<div class="reframe-box">
+      <div class="reframe-q">${reframeQ} <span class="reframe-dismiss" onclick="dismissReframe('${top.id}')">Überspringen</span></div>
+      <textarea id="reframe-note-input" placeholder="Kurze Notiz (optional)" onchange="saveReframeNote('${top.id}')">${esc(top.reframeNote||'')}</textarea>
+    </div>`;
+  } else if(showConfidence){
+    supportBoxHtml = `<div class="reframe-box">
+      <div class="reframe-q">${confidenceQ} <span class="reframe-dismiss" onclick="dismissConfidence('${top.id}')">Überspringen</span></div>
+    </div>`;
+  }
 
   const timerRunningHere = timerActive && timerTaskId===top.id;
   const timerHtml = timerRunningHere
@@ -969,7 +990,7 @@ function renderFocusStack(){
       ? `<div class="obstacle-chips">${[15,25,45].map(m=>
           `<button class="obstacle-chip" onclick="startRestrictTimer('${top.id}',${m})">${m} Min</button>`
         ).join('')}</div>`
-      : `<button class="obstacle-toggle" onclick="toggleRestrictPicker()">⏳ Arbeitszeit begrenzen (nur bis, nicht mindestens)</button>`
+      : `<button class="obstacle-toggle" onclick="toggleRestrictPicker()">⏳ Arbeitszeit begrenzen</button>`
   ) : '';
 
   const obstacleHtml = obstacleConfirmedFor
@@ -990,11 +1011,19 @@ function renderFocusStack(){
         ).join('')}</div>`
       : `<button class="obstacle-toggle" onclick="toggleInnerTeamPicker()">🗣️ Innere Stimme gerade laut?</button>`;
 
+  // "Woran hat's gelegen?" bleibt direkt sichtbar (etabliert, meistgenutzt).
+  // Arbeitszeitrestriktion + inneres Team sind neuere, seltener gebrauchte
+  // Werkzeuge — hinter einem gemeinsamen "🧰 Mehr"-Toggle versteckt, damit die
+  // Karte im Normalfall nicht mit drei fast identisch aussehenden Text-Links
+  // vollläuft (siehe auch supportBoxHtml-Zusammenführung oben).
+  const moreToolsHtml = toolsOpen
+    ? `${restrictHtml}${innerTeamHtml}`
+    : (restrictHtml || innerTeamHtml ? `<button class="obstacle-toggle" onclick="toggleTools()">🧰 Mehr</button>` : '');
+
   el.innerHTML = `<div class="focus-card">
     <div class="stage-chip">${STAGE_LABEL[stage]}</div>
     <div class="focus-name">${esc(top.name)}</div>
-    ${reframeHtml}
-    ${confidenceHtml}
+    ${supportBoxHtml}
     ${detailHtml}
     <div class="focus-actions">
       ${timerHtml}
@@ -1002,9 +1031,8 @@ function renderFocusStack(){
       <button class="focus-btn focus-btn-secondary" onclick="markDone('${top.id}')">✓ Erledigt</button>
       <button class="focus-btn focus-btn-secondary" onclick="openRefine('${top.id}')">Verfeinern</button>
     </div>
-    ${restrictHtml}
     ${obstacleHtml}
-    ${innerTeamHtml}
+    ${moreToolsHtml}
   </div>`;
 }
 
